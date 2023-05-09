@@ -26,33 +26,28 @@
 class Agent {
 
 public:
-        int    rowDimension;
-        int    colDimension;
-        int    totalMines;
-        int    agentX;
-        int    agentY;
-        public:
+  int rowDimension;
+  int colDimension;
+  int totalMines;
+  int agentX;
+  int agentY;
 
-        // Actuators
-        enum Action_type
-        {
-            LEAVE,
-            UNCOVER,
-            FLAG,
-            UNFLAG,
-        };
+public:
+  // Actuators
+  enum Action_type {
+    LEAVE,
+    UNCOVER,
+    FLAG,
+    UNFLAG,
+  };
 
-        struct Action{
-            Action_type     action;
-            int             x;
-            int             y;
+  struct Action {
+    Action_type action;
+    int x;
+    int y;
+  };
 
-        };
+  virtual Action getAction(int number) = 0;
+};
 
-        virtual Action getAction
-                (
-                    int number
-                ) = 0;
-        };
-
-#endif //MINE_SWEEPER_CPP_SHELL_AGENT_HPP
+#endif // MINE_SWEEPER_CPP_SHELL_AGENT_HPP

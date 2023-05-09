@@ -21,31 +21,28 @@
 #define MINE_SWEEPER_CPP_SHELL_MYAI_HPP
 
 #include "Agent.hpp"
+#include <algorithm>
 #include <iostream> // temporary use
-#include <vector>
 #include <map>
 #include <set>
-#include <algorithm>
+#include <vector>
 
 using namespace std;
 
-class MyAI : public Agent
-{
+class MyAI : public Agent {
 public:
-    MyAI ( int _rowDimension, int _colDimension, int _totalMines, int _agentX, int _agentY );
+  MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
+       int _agentY);
 
-    Action getAction ( int number ) override;
+  Action getAction(int number) override;
 
+  // ======================================================================
+  // YOUR CODE BEGINS
+  // ======================================================================
 
-    // ======================================================================
-    // YOUR CODE BEGINS
-    // ======================================================================
-
-
-
-    // ======================================================================
-    // YOUR CODE ENDS
-    // ======================================================================
+  // ======================================================================
+  // YOUR CODE ENDS
+  // ======================================================================
 };
 
-#endif //MINE_SWEEPER_CPP_SHELL_MYAI_HPP
+#endif // MINE_SWEEPER_CPP_SHELL_MYAI_HPP
