@@ -32,6 +32,4 @@ all: $(SOURCES)
 submission: all
 	@rm -f *.zip
 	@echo ""
-	@read -p "Enter Team Name (No spaces, '_', '/', '*'): " teamName; \
-	 echo ""; \
-	 zip -rqq s_$${teamName}.zip $(SOURCE_DIR) $(BIN_DIR)
+	 zip -rqq s_Team18.zip $(SOURCE_DIR) $(BIN_DIR)
