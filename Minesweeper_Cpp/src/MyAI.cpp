@@ -45,27 +45,6 @@ Agent::Action MyAI::getAction(int number) {
   int y = this->agentY;
   updateVecs(number, x, y);
 
-  // Check if we already stored a next move
-  if (!nextMoves.empty()) {
-    Agent::Action next = nextMoves.front();
-    nextMoves.pop();
-
-    while (!nextMoves.empty() &&
-           !(next.x >= 0 && next.x < this->colDimension && next.y >= 0 &&
-             next.y < this->rowDimension &&
-             boardStatus->at(next.y).at(next.x) == COVERED)) {
-      next = nextMoves.front();
-      nextMoves.pop();
-    }
-
-    if (!nextMoves.empty()) {
-      this->agentX = next.x;
-      this->agentY = next.y;
-
-      return next;
-    }
-  }
-
   // If there are no bombs nearby, then every surrounding tile must be safe
   if (number == 0) {
     for (int i = -1; i <= 1; ++i) {
@@ -77,12 +56,51 @@ Agent::Action MyAI::getAction(int number) {
     }
   }
 
+  // Check if we already stored a next move
+  while (!nextMoves.empty()) {
+    Agent::Action next = nextMoves.front();
+    nextMoves.pop();
+
+    if (!(inBounds(next.x, next.y) &&
+          boardStatus->at(next.y).at(next.x) == COVERED)) {
+      continue;
+    }
+
+    this->agentX = next.x;
+    this->agentY = next.y;
+
+    return next;
+  }
+
+  // Every surrounding tile must be a bomb
+  if (number == coveredNeighbors(x, y)) {
+  }
+
   return {LEAVE, -1, -1};
 }
 
 void MyAI::updateVecs(int number, int x, int y) {
-  boardStatus->at(y).at(x) = UNCOVER;
+  boardStatus->at(y).at(x) = UNCOVERED;
   boardValues->at(y).at(x) = number;
+}
+
+bool MyAI::inBounds(int x, int y) {
+  return x >= 0 && x < this->colDimension && y >= 0 && y < this->rowDimension;
+}
+
+int MyAI::coveredNeighbors(int x, int y) {
+  int numCoveredNeighbors = 0;
+
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      if (inBounds(x + i, y + j) &&
+          boardStatus->at(x + i).at(y + j) == COVERED) {
+        numCoveredNeighbors++;
+      }
+    }
+  }
+
+  return numCoveredNeighbors;
 }
 
 void MyAI::printVecs() {

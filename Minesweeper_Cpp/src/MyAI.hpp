@@ -32,7 +32,7 @@ using namespace std;
 
 class MyAI : public Agent {
 private:
-  enum TileStatus { COVERED, UNCOVER, FLAG, UNFLAG };
+  enum TileStatus { COVERED, UNCOVERED };
   queue<Action> nextMoves;
   vector<vector<TileStatus>> *boardStatus = new vector<vector<TileStatus>>;
   vector<vector<int>> *boardValues = new vector<vector<int>>;
@@ -45,6 +45,8 @@ public:
 
 private:
   void updateVecs(int number, int x, int y);
+  bool inBounds(int x, int y);
+  int unmarkedNeighbors(int x, int y);
 
   void printVecs();
 };
