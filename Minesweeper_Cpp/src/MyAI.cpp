@@ -37,9 +37,6 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     boardStatus->push_back(initialStatus);
     boardValues->push_back(initialValues);
   }
-  printVecs();
-  updateVecs(3, 1, 2);
-  printVecs();
 };
 
 Agent::Action MyAI::getAction(int number) {
@@ -53,22 +50,31 @@ Agent::Action MyAI::getAction(int number) {
     Agent::Action next = nextMoves.front();
     nextMoves.pop();
 
-    this->agentX = next.x;
-    this->agentY = next.y;
+    while (!nextMoves.empty() &&
+           !(next.x >= 0 && next.x < this->colDimension && next.y >= 0 &&
+             next.y < this->rowDimension &&
+             boardStatus->at(next.y).at(next.x) == COVERED)) {
+      next = nextMoves.front();
+      nextMoves.pop();
+    }
 
-    return next;
+    if (!nextMoves.empty()) {
+      this->agentX = next.x;
+      this->agentY = next.y;
+
+      return next;
+    }
   }
 
   // If there are no bombs nearby, then every surrounding tile must be safe
   if (number == 0) {
-    // nextMoves.push({UNCOVER, x - 1, y + 1});
-    // nextMoves.push({UNCOVER, x, y + 1});
-    // nextMoves.push({UNCOVER, x + 1, y + 1});
-    // nextMoves.push({UNCOVER, x - 1, y});
-    // nextMoves.push({UNCOVER, x + 1, y});
-    // nextMoves.push({UNCOVER, x - 1, y - 1});
-    // nextMoves.push({UNCOVER, x, y - 1});
-    // nextMoves.push({UNCOVER, x + 1, y - 1});
+    for (int i = -1; i <= 1; ++i) {
+      for (int j = -1; j <= 1; ++j) {
+        if (!(i == 0 && j == 0)) {
+          nextMoves.push({Action_type::UNCOVER, x + i, y + j});
+        }
+      }
+    }
   }
 
   return {LEAVE, -1, -1};
@@ -78,8 +84,6 @@ void MyAI::updateVecs(int number, int x, int y) {
   boardStatus->at(y).at(x) = UNCOVER;
   boardValues->at(y).at(x) = number;
 }
-
-// void MyAI::pushInQueue()
 
 void MyAI::printVecs() {
   int numRows = this->rowDimension;

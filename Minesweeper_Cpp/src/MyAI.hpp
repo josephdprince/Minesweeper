@@ -45,7 +45,6 @@ public:
 
 private:
   void updateVecs(int number, int x, int y);
-  void pushInQueue(Action move);
 
   void printVecs();
 };
