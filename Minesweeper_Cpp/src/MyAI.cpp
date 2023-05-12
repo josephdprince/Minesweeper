@@ -30,6 +30,7 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
   this->agentY = _agentY;
 
   // Populate both arrays with starting board information
+  // TODO: This is backwars from how world.cpp does it
   for (int i = 0; i < _rowDimension; ++i) {
     vector<TileStatus> initialStatus(_colDimension, COVERED);
     vector<int> initialValues(_colDimension, -1);
@@ -40,6 +41,7 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
 };
 
 Agent::Action MyAI::getAction(int number) {
+  cout << "Here" << endl;
   // Update last action
   int x = this->agentX;
   int y = this->agentY;
@@ -50,6 +52,28 @@ Agent::Action MyAI::getAction(int number) {
     for (int i = -1; i <= 1; ++i) {
       for (int j = -1; j <= 1; ++j) {
         if (!(i == 0 && j == 0)) {
+          nextMoves.push({Action_type::UNCOVER, x + i, y + j});
+        }
+      }
+    }
+  }
+  // Every surrounding tile must be a bomb so flag everything covered
+  else if (number == coveredNeighbors(x, y)) {
+    for (int i = -1; i <= 1; ++i) {
+      for (int j = -1; j <= 1; ++j) {
+        if (inBounds(x + i, y + j) &&
+            boardStatus->at(y + i).at(x + j) == COVERED) {
+          boardStatus->at(y + i).at(x + j) = FLAGGED;
+        }
+      }
+    }
+  }
+  // Everything not flagged must be safe
+  else if (number == numFlags(x, y)) {
+    for (int i = -1; i <= 1; ++i) {
+      for (int j = -1; j <= 1; ++j) {
+        if (inBounds(x + i, y + j) &&
+            boardStatus->at(y + i).at(x + j) == COVERED) {
           nextMoves.push({Action_type::UNCOVER, x + i, y + j});
         }
       }
@@ -72,10 +96,6 @@ Agent::Action MyAI::getAction(int number) {
     return next;
   }
 
-  // Every surrounding tile must be a bomb
-  if (number == coveredNeighbors(x, y)) {
-  }
-
   return {LEAVE, -1, -1};
 }
 
@@ -94,13 +114,28 @@ int MyAI::coveredNeighbors(int x, int y) {
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
       if (inBounds(x + i, y + j) &&
-          boardStatus->at(x + i).at(y + j) == COVERED) {
+          boardStatus->at(y + i).at(x + j) == COVERED) {
         numCoveredNeighbors++;
       }
     }
   }
 
   return numCoveredNeighbors;
+}
+
+int MyAI::numFlags(int x, int y) {
+  int numFlags = 0;
+
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      if (inBounds(x + i, y + j) &&
+          boardStatus->at(y + i).at(x + j) == FLAGGED) {
+        numFlags++;
+      }
+    }
+  }
+
+  return numFlags;
 }
 
 void MyAI::printVecs() {

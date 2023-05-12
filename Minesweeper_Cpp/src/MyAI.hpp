@@ -29,10 +29,10 @@
 #include <vector>
 
 using namespace std;
-
+// TODO: Memory management
 class MyAI : public Agent {
 private:
-  enum TileStatus { COVERED, UNCOVERED };
+  enum TileStatus { COVERED, UNCOVERED, FLAGGED };
   queue<Action> nextMoves;
   vector<vector<TileStatus>> *boardStatus = new vector<vector<TileStatus>>;
   vector<vector<int>> *boardValues = new vector<vector<int>>;
@@ -46,7 +46,8 @@ public:
 private:
   void updateVecs(int number, int x, int y);
   bool inBounds(int x, int y);
-  int unmarkedNeighbors(int x, int y);
+  int coveredNeighbors(int x, int y);
+  int numFlags(int x, int y);
 
   void printVecs();
 };
