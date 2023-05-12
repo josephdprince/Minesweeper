@@ -22,27 +22,32 @@
 
 #include "Agent.hpp"
 #include <algorithm>
-#include <iostream> // temporary use
+#include <iostream> // FIXME: temporary use
 #include <map>
+#include <queue>
 #include <set>
 #include <vector>
 
 using namespace std;
 
 class MyAI : public Agent {
+private:
+  enum TileStatus { COVERED, UNCOVER, FLAG, UNFLAG };
+  queue<Action> nextMoves;
+  vector<vector<TileStatus>> *boardStatus = new vector<vector<TileStatus>>;
+  vector<vector<int>> *boardValues = new vector<vector<int>>;
+
 public:
   MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
        int _agentY);
 
   Action getAction(int number) override;
 
-  // ======================================================================
-  // YOUR CODE BEGINS
-  // ======================================================================
+private:
+  void updateVecs(int number, int x, int y);
+  void pushInQueue(Action move);
 
-  // ======================================================================
-  // YOUR CODE ENDS
-  // ======================================================================
+  void printVecs();
 };
 
 #endif // MINE_SWEEPER_CPP_SHELL_MYAI_HPP
