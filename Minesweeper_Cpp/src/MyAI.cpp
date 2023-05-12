@@ -30,15 +30,15 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
   this->agentY = _agentY;
 
   // Populate both arrays with starting board information
-  for (int i = 0; i < _colDimension; ++i) {
-    vector<TileStatus> initialStatus(_rowDimension, COVERED);
-    vector<int> initialValues(_rowDimension, -1);
+  for (int i = 0; i < _rowDimension; ++i) {
+    vector<TileStatus> initialStatus(_colDimension, COVERED);
+    vector<int> initialValues(_colDimension, -1);
 
     boardStatus->push_back(initialStatus);
     boardValues->push_back(initialValues);
   }
   printVecs();
-  updateVecs(3, 1, 5);
+  updateVecs(3, 1, 2);
   printVecs();
 };
 
@@ -75,8 +75,8 @@ Agent::Action MyAI::getAction(int number) {
 }
 
 void MyAI::updateVecs(int number, int x, int y) {
-  boardStatus->at(x).at(y) = UNCOVER;
-  boardValues->at(x).at(y) = number;
+  boardStatus->at(y).at(x) = UNCOVER;
+  boardValues->at(y).at(x) = number;
 }
 
 // void MyAI::pushInQueue()
@@ -85,17 +85,17 @@ void MyAI::printVecs() {
   int numRows = this->rowDimension;
   int numCols = this->colDimension;
   cout << "SIZE: " << numRows << "X" << numCols << endl;
-  for (int i = 0; i < numCols; ++i) {
-    for (int j = 0; j < numRows; ++j) {
-      cout << boardStatus->at(i).at(j) << ",";
+  for (int row = numRows - 1; row >= 0; --row) {
+    for (int col = 0; col < numCols; ++col) {
+      cout << boardStatus->at(row).at(col) << ",";
     }
     cout << endl;
   }
   cout << endl;
 
-  for (int i = 0; i < numCols; ++i) {
-    for (int j = 0; j < numRows; ++j) {
-      cout << boardValues->at(i).at(j) << ",";
+  for (int row = numRows - 1; row >= 0; --row) {
+    for (int col = 0; col < numCols; ++col) {
+      cout << boardValues->at(row).at(col) << ",";
     }
     cout << endl;
   }
