@@ -46,8 +46,8 @@ World::World(bool _debug, string aiType, string filename) {
 
   } else {
     totalMines = 10;
-    colDimension = 3;
-    rowDimension = 10;
+    colDimension = 8;
+    rowDimension = 8;
     board = new Tile *[colDimension];
     for (int index = 0; index < colDimension; ++index)
       board[index] = new Tile[rowDimension];

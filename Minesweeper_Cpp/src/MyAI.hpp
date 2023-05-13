@@ -34,13 +34,13 @@ class MyAI : public Agent {
 private:
   enum TileStatus { COVERED, UNCOVERED, FLAGGED };
   queue<Action> nextMoves;
-  vector<vector<TileStatus>> *boardStatus = new vector<vector<TileStatus>>;
-  vector<vector<int>> *boardValues = new vector<vector<int>>;
+  vector<vector<TileStatus>> boardStatus;
+  vector<vector<int>> boardValues;
 
 public:
   MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
        int _agentY);
-
+  ~MyAI();
   Action getAction(int number) override;
 
 private:
