@@ -48,14 +48,18 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     Agent::Action - The next action to perform by this agent
 */
 Agent::Action MyAI::getAction(int number) {
-  cout << "Inside getAction" << endl;
+  cout << "Inside getAction. Current number: " << number << endl;
   // Update last action
   int x = this->agentX;
   int y = this->agentY;
+  cout << "x: " << x << "\ty: " << y << endl;
   updateVecs(number, x, y);
 
-  int numCoveredNeighbor = (number == 0) ? -1 : coveredNeighbors(x, y);
-  int numFlaggedNeighbor = (number == 0) ? -1 : numFlags(x, y);
+  int numCoveredNeighbor = -1;
+  int numFlaggedNeighbor = -1;
+  if (number == 0) {
+    neighbors(x, y, numCoveredNeighbor, numFlaggedNeighbor);
+  }
 
   cout << "Cover neigh = " << numCoveredNeighbor << endl;
   cout << "Flagged neigh = " << numFlaggedNeighbor << endl;
@@ -63,29 +67,33 @@ Agent::Action MyAI::getAction(int number) {
   // on the number reveal by last action
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
+      int currX = (x + i < 0)                     ? 0
+                  : (x + i >= this->colDimension) ? this->colDimension - 1
+                                                  : x + i;
+      int currY = (y + j < 0)                     ? 0
+                  : (y + j >= this->rowDimension) ? this->rowDimension - 1
+                                                  : y + j;
 
+      // There are no bombs so every surrounding tile must be safe
       if (number == 0) {
-        // There are no bombs at last revealed spot, then every surrounding
-        // tiles must be safe
-        if (!(i == 0 && j == 0) && inBounds(x + i, y + j) &&
-            boardStatus.at(y + i).at(x + j) == COVERED) {
-          cout << "\tNum = 0, pushing (" << x + i << ", " << y + j << ")"
+        if (!(i == 0 && j == 0) && boardStatus.at(currY).at(currX) == COVERED) {
+          cout << "\tNum = 0, pushing (" << currX << ", " << currY << ")"
                << endl;
-          nextMoves.push({Action_type::UNCOVER, x + i, y + j});
+          nextMoves.push({Action_type::UNCOVER, currX, currY});
         }
-      } else if (number == numCoveredNeighbor) {
+      }
+      // Every surrounding tile must be a bomb so flag everything covered
+      else if (number == numCoveredNeighbor) {
         cout << "\tNum = coveredNeighbors" << endl;
-        // Every surrounding tile must be a bomb so flag everything covered
-        if (inBounds(x + i, y + j) &&
-            boardStatus.at(y + i).at(x + j) == COVERED) {
-          boardStatus.at(y + i).at(x + j) = FLAGGED;
+        if (boardStatus.at(currY).at(currX) == COVERED) {
+          boardStatus.at(currY).at(currX) = FLAGGED;
         }
-      } else if (number == numFlaggedNeighbor) {
+      }
+      // Everything not flagged must be safe
+      else if (number == numFlaggedNeighbor) {
         cout << "\tNum = numFlaggedNeighbor" << endl;
-        // Everything not flagged must be safe
-        if (inBounds(x + i, y + j) &&
-            boardStatus.at(y + i).at(x + j) == COVERED) {
-          nextMoves.push({Action_type::UNCOVER, x + i, y + j});
+        if (boardStatus.at(currY).at(currX) == COVERED) {
+          nextMoves.push({Action_type::UNCOVER, currX, currY});
         }
       }
     }
@@ -105,6 +113,7 @@ Agent::Action MyAI::getAction(int number) {
     this->agentX = next.x;
     this->agentY = next.y;
 
+    cout << "Uncover (" << next.x << "," << next.y << ") next" << endl;
     return next;
   }
   cout << "GG no more in queue" << endl;
@@ -124,37 +133,23 @@ bool MyAI::inBounds(int x, int y) {
 /*
   Count the number of covered neighbors around a given coordinate (x, y)
 */
-int MyAI::coveredNeighbors(int x, int y) {
-  int numCoveredNeighbors = 0;
-
+void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
-      if (inBounds(x + i, y + j) &&
-          boardStatus.at(y + i).at(x + j) == COVERED) {
+      int currX = (x + i < 0)                     ? 0
+                  : (x + i >= this->colDimension) ? this->colDimension - 1
+                                                  : x + i;
+      int currY = (y + j < 0)                     ? 0
+                  : (y + j >= this->rowDimension) ? this->rowDimension - 1
+                                                  : y + j;
+
+      if (boardStatus.at(currY).at(currX) == COVERED) {
         numCoveredNeighbors++;
-      }
-    }
-  }
-
-  return numCoveredNeighbors;
-}
-
-/*
-  Count the number of Flag(s) around a given coordinate (x, y)
-*/
-int MyAI::numFlags(int x, int y) {
-  int numFlags = 0;
-
-  for (int i = -1; i <= 1; ++i) {
-    for (int j = -1; j <= 1; ++j) {
-      if (inBounds(x + i, y + j) &&
-          boardStatus.at(y + i).at(x + j) == FLAGGED) {
+      } else if (boardStatus.at(currY).at(currX) == FLAGGED) {
         numFlags++;
       }
     }
   }
-
-  return numFlags;
 }
 
 void MyAI::printVecs() {

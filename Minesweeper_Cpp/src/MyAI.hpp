@@ -46,8 +46,7 @@ public:
 private:
   void updateVecs(int number, int x, int y);
   bool inBounds(int x, int y);
-  int coveredNeighbors(int x, int y);
-  int numFlags(int x, int y);
+  void neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags);
 
   void printVecs();
 };
