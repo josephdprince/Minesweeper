@@ -32,7 +32,7 @@ using namespace std;
 // TODO: Memory management
 class MyAI : public Agent {
 private:
-  enum TileStatus { COVERED, UNCOVERED, FLAGGED };
+  enum TileStatus { COVERED, UNCOVERED, FLAGGED, INQ };
   queue<Action> nextMoves;
   vector<vector<TileStatus>> boardStatus;
   vector<vector<int>> boardValues;
