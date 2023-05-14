@@ -32,4 +32,4 @@ all: $(SOURCES)
 submission: all
 	@rm -f *.zip
 	@echo ""
-	 zip -rqq s_Team18.zip $(SOURCE_DIR) $(BIN_DIR)
+	 zip -rqq Group18.zip $(SOURCE_DIR) $(BIN_DIR)
