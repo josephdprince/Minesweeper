@@ -120,14 +120,15 @@ int World::run() {
         cin.ignore(999, '\n');
       }
     }
-
+    // cout << "WORLD FAILURE POINT" << endl;
     if (lastAction.action == Agent::UNCOVER)
       perceptNumber = board[agentX][agentY].number;
     else
       perceptNumber = -1;
+    // cout << "WORLD FAILURE POINT2" << endl;
     lastAction = agent->getAction(perceptNumber);
-
-    // Make the move
+    // cout << "WORLD FAILURE POINT3" << endl;
+    //  Make the move
     gameOver = doMove();
 
     move++;

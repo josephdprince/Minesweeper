@@ -16,7 +16,8 @@
 //
 //                  Options:
 //						-m Use the ManualAI instead of
-//MyAI. 						-r Use the RandomAI instead of MyAI.
+// MyAI. 						-r Use the RandomAI instead of
+// MyAI.
 //                      -d Debug mode, which displays the game board
 //                         after every mode. Useless with -m.
 //                      -v Verbose mode displays world file names before
@@ -194,6 +195,7 @@ int main(int argc, char *argv[]) {
       cout << "Running world: " << worldFile << endl;
 
     World world(debug, aiType, worldFile);
+    cout << "Got pass world constrc" << endl;
     int score = world.run();
     if (outputFile == "") {
       if (score)

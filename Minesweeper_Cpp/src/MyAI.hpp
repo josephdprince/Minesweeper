@@ -22,27 +22,53 @@
 
 #include "Agent.hpp"
 #include <algorithm>
-#include <iostream> // temporary use
+#include <iostream> // FIXME: temporary use
 #include <map>
+#include <queue>
 #include <set>
 #include <vector>
 
 using namespace std;
 
+struct Coordinate {
+  int x;
+  int y;
+
+  bool operator()(const Coordinate &lhs, const Coordinate &rhs) const {
+    return (lhs.x == rhs.x && lhs.y < rhs.y) ||
+           (lhs.y == rhs.y && lhs.x < rhs.x) ||
+           (lhs.x < rhs.x && lhs.y < rhs.y);
+  }
+};
+
 class MyAI : public Agent {
+private:
+  enum TileStatus { COVERED, UNCOVERED, FLAGGED, INQ };
+  queue<Action> nextMoves;
+  set<Coordinate, Coordinate> comeBackLaterSet;
+  vector<vector<TileStatus>> boardStatus;
+  vector<vector<int>> boardValues;
+
 public:
   MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
        int _agentY);
 
   Action getAction(int number) override;
 
-  // ======================================================================
-  // YOUR CODE BEGINS
-  // ======================================================================
+private:
+  void updateVecs(int number, int x, int y);
+  bool inBounds(int x, int y);
+  void neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags);
+  int countNearCovered(int x, int y);
+  int countNearFlag(int x, int y);
+  bool addForSureAround(int x, int y);
+  void printVecs();
 
-  // ======================================================================
-  // YOUR CODE ENDS
-  // ======================================================================
+  // Getters and Setters
+  TileStatus getTileStatus(int x, int y);
+  int getTileValue(int x, int y);
+  void setTileStatus(int x, int y, TileStatus newStat);
+  void setTileValue(int x, int y, int newVal);
 };
 
 #endif // MINE_SWEEPER_CPP_SHELL_MYAI_HPP
