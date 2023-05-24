@@ -54,12 +54,6 @@ Agent::Action MyAI::getAction(int number) {
   int y = this->agentY;
   updateVecs(number, x, y);
 
-  // count the neighboring tile of th revealed one
-  int numCoveredNeighbor = -1;
-  int numFlaggedNeighbor = -1;
-  if (number != 0) {
-    neighbors(x, y, numCoveredNeighbor, numFlaggedNeighbor);
-  }
   // ****************************************************************
   // Select what to push into the next action queue based
   // on the number reveal by last action
@@ -83,10 +77,10 @@ Agent::Action MyAI::getAction(int number) {
     }
   }
 
-  // // Found all bombs and reveal the reast that is not flagged
-  // if (this->discovered_bomb == this->totalMines) {
-  //   revealAllSquare();
-  // }
+  // Found all bombs and reveal the reast that is not flagged
+  if (this->discovered_bomb == this->totalMines) {
+    revealAllSquare();
+  }
 
   // ****************************************************************
   // Check what to return next
