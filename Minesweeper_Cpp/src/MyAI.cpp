@@ -28,6 +28,7 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
   this->totalMines = _totalMines;
   this->agentX = _agentX;
   this->agentY = _agentY;
+  this->discovered_bomb = 0;
 
   // Populate both arrays with starting board information
   // TODO: This is backwars from how world.cpp does it
@@ -48,30 +49,23 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     Agent::Action - The next action to perform by this agent
 */
 Agent::Action MyAI::getAction(int number) {
-  // cout << "Inside getAction. Current number: " << number << endl;
-  // cout << "Agent checkpt 0" << endl;
   // Update last action
   int x = this->agentX;
   int y = this->agentY;
-  // cout << "x: " << x << "\ty: " << y << endl;
   updateVecs(number, x, y);
-  // cout << "Agent checkpt 0.1" << endl;
 
+  // count the neighboring tile of th revealed one
   int numCoveredNeighbor = -1;
   int numFlaggedNeighbor = -1;
   if (number != 0) {
     neighbors(x, y, numCoveredNeighbor, numFlaggedNeighbor);
   }
-  // cout << "Agent checkpt 0.2" << endl;
-  // cout << "Cover neigh = " << numCoveredNeighbor << endl;
-  // cout << "Flagged neigh = " << numFlaggedNeighbor << endl;
-
   // ****************************************************************
   // Select what to push into the next action queue based
   // on the number reveal by last action
   // ****************************************************************
   bool allClear = addForSureAround(x, y);
-  // cout << "Agent checkpt 1" << endl;
+
   // Revealed tile doesnt give enough info
   if (!allClear) {
     comeBackLaterSet.insert({x, y});
@@ -89,8 +83,11 @@ Agent::Action MyAI::getAction(int number) {
     }
   }
 
-  // cout << "Agent checkpt 2" << endl;
-  // cout << "\tgetting next move" << endl;
+  // // Found all bombs and reveal the reast that is not flagged
+  // if (this->discovered_bomb == this->totalMines) {
+  //   revealAllSquare();
+  // }
+
   // ****************************************************************
   // Check what to return next
   // ****************************************************************
@@ -100,68 +97,75 @@ Agent::Action MyAI::getAction(int number) {
 
     this->agentX = next.x;
     this->agentY = next.y;
-
-    // cout << "Uncover (" << next.x << "," << next.y << ") next" << endl;
     return next;
   }
-  // cout << "Agent checkpt 3" << endl;
-  // cout << "GG no more in queue" << endl;
+
   return {LEAVE, -1, -1};
+}
+
+/*
+  Reveal the rest of the covered squares if flagged tiles = total # of bombs
+  (meaning we found all bombs)
+*/
+void MyAI::revealAllSquare() {
+  if (this->totalMines != this->discovered_bomb)
+    return;
+
+  int numCol = this->colDimension;
+  int numRow = this->rowDimension;
+  for (int i = 0; i < numRow; ++i) {
+    for (int j = 0; j < numCol; ++j) {
+      if (getTileStatus(i, j) == COVERED) {
+        nextMoves.push({Action_type::UNCOVER, i, j});
+        setTileStatus(i, j, INQ);
+      }
+    }
+  }
 }
 
 /*
   Add action we know for sure to do around (x, y) to queue
 */
 bool MyAI::addForSureAround(int x, int y) {
-  // cout << "ForSure checkpt 1" << endl;
   bool allClear = false;
   int centerVal = getTileValue(x, y);
   int numCoveredNeighbor = -1;
   int numFlaggedNeighbor = -1;
   neighbors(x, y, numCoveredNeighbor, numFlaggedNeighbor);
 
-  // cout << "ForSure checkpt 2" << endl;
   if (centerVal != 0 && numCoveredNeighbor != centerVal &&
       numFlaggedNeighbor != centerVal) {
     return allClear;
   }
-  // cout << "ForSure checkpt 3" << endl;
   allClear = true;
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
       int currX = x + i;
       int currY = y + j;
-      // cout << "Checking (" << currX << "," << currY << ")" << endl;
       if ((i == 0 && j == 0) || currX < 0 || currX >= this->colDimension ||
           currY < 0 || currY >= this->rowDimension) {
-        // cout << "\tSkipped" << endl;
         continue;
       }
       TileStatus currStat = getTileStatus(currX, currY);
-      // cout << "GOT STATUS" << endl;
 
       // There are no bombs so every surrounding tile must be safe
       if (centerVal == 0) {
-        // cout << "ForSure checkpt 3.1" << endl;
         if (currStat == COVERED) {
-          // cout << "\tNum = 0, pushing (" << currX << ", " << currY << ")"
-          //      << endl;
           nextMoves.push({Action_type::UNCOVER, currX, currY});
           setTileStatus(currX, currY, INQ);
         }
       }
       // Every surrounding tile must be a bomb so flag everything covered
       else if (centerVal == numCoveredNeighbor) {
-        // cout << "ForSure checkpt 3.2" << endl;
-        //  cout << "\tNum = coveredNeighbors" << endl;
         if (currStat == COVERED) {
           setTileStatus(currX, currY, FLAGGED);
+          nextMoves.push({Action_type::FLAG, currX, currY});
+          // setTileStatus(currX, currY, INQ);
+          ++discovered_bomb;
         }
       }
       // Everything not flagged must be safe
       else if (centerVal == numFlaggedNeighbor) {
-        // cout << "ForSure checkpt 3.3" << endl;
-        //  cout << "\tNum = numFlaggedNeighbor" << endl;
         if (currStat == COVERED) {
           nextMoves.push({Action_type::UNCOVER, currX, currY});
           setTileStatus(currX, currY, INQ);
@@ -169,12 +173,12 @@ bool MyAI::addForSureAround(int x, int y) {
       }
     }
   }
-  // cout << "ForSure checkpt 4" << endl;
   return allClear;
 }
 
 void MyAI::updateVecs(int number, int x, int y) {
-  // cout << "UpdateVec (" << x << "," << y << ") = " << number << endl;
+  if (number == -1)
+    return;
   setTileStatus(x, y, UNCOVERED);
   setTileValue(x, y, number);
 }

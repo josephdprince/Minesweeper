@@ -48,6 +48,7 @@ private:
   set<Coordinate, Coordinate> comeBackLaterSet;
   vector<vector<TileStatus>> boardStatus;
   vector<vector<int>> boardValues;
+  int discovered_bomb;
 
 public:
   MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
@@ -63,6 +64,7 @@ private:
   int countNearFlag(int x, int y);
   bool addForSureAround(int x, int y);
   void printVecs();
+  void revealAllSquare();
 
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);
