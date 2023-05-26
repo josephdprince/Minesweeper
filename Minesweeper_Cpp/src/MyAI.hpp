@@ -22,6 +22,8 @@
 
 #include "Agent.hpp"
 #include <algorithm>
+#include <bitset>
+#include <cmath>
 #include <iostream> // FIXME: temporary use
 #include <map>
 #include <queue>
@@ -48,6 +50,7 @@ private:
   set<Coordinate, Coordinate> comeBackLaterSet;
   vector<vector<TileStatus>> boardStatus;
   vector<vector<int>> boardValues;
+  vector<vector<int>> possiTable;
   int discovered_bomb;
 
 public:
@@ -62,15 +65,21 @@ private:
   void neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags);
   int countNearCovered(int x, int y);
   int countNearFlag(int x, int y);
-  bool addForSureAround(int x, int y);
+  bool easyRules(int x, int y);
   void printVecs();
-  void revealAllSquare();
+  void revealAllSquares();
+  void checkComeBack();
+  void grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
+                     vector<Coordinate> &comeBackTails,
+                     vector<Coordinate> &otherTiles);
 
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);
   int getTileValue(int x, int y);
   void setTileStatus(int x, int y, TileStatus newStat);
   void setTileValue(int x, int y, int newVal);
+  int getTilePossi(int x, int y);
+  void setTilePossi(int x, int y, int newVal);
 };
 
 #endif // MINE_SWEEPER_CPP_SHELL_MYAI_HPP

@@ -1,0 +1,8 @@
+echo Compiling
+make
+echo Generating Worlds...
+cd ../WorldGenerator
+./generateTournament.sh &>/dev/null
+cd -
+echo Running
+bin/Minesweeper -f ../WorldGenerator/Problems

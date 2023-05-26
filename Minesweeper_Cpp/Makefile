@@ -33,3 +33,8 @@ submission: all
 	@rm -f *.zip
 	@echo ""
 	 zip -rqq Group18.zip $(SOURCE_DIR) $(BIN_DIR)
+
+run: all
+	@  $(BIN_DIR)/Minesweeper -f ../WorldGenerator/Problems/
+
+

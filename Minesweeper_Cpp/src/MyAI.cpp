@@ -35,7 +35,9 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
   for (int i = 0; i < _rowDimension; ++i) {
     vector<TileStatus> initialStatus(_colDimension, COVERED);
     vector<int> initialValues(_colDimension, -1);
+    vector<int> initialPossi(_colDimension, 100);
 
+    possiTable.push_back(initialPossi);
     boardStatus.push_back(initialStatus);
     boardValues.push_back(initialValues);
   }
@@ -58,28 +60,44 @@ Agent::Action MyAI::getAction(int number) {
   // Select what to push into the next action queue based
   // on the number reveal by last action
   // ****************************************************************
-  bool allClear = addForSureAround(x, y);
+  bool allClear = easyRules(x, y);
 
   // Revealed tile doesnt give enough info
   if (!allClear) {
     comeBackLaterSet.insert({x, y});
   } else {
-    // checks the previous unclear tiles
-    vector<Coordinate> nowSetTiles;
-
-    for (auto i : comeBackLaterSet) {
-      if (addForSureAround(i.x, i.y)) {
-        nowSetTiles.push_back(i);
-      }
-    }
-    for (auto i : nowSetTiles) {
-      comeBackLaterSet.erase(i);
-    }
+    // Now that we have a tile that satisifed an easy rule, check neighbors to
+    // see if they are in the come back set. If so, check them again with easy
+    // rules
+    checkComeBack();
   }
 
-  // Found all bombs and reveal the reast that is not flagged
+  // Found all bombs and reveal the rest that are not flagged
   if (this->discovered_bomb == this->totalMines) {
-    revealAllSquare();
+    revealAllSquares();
+  }
+
+  // If nextMoves queue is empty, check our come back later set
+  // #TODO: add the prediction logic
+  if (nextMoves.empty()) {
+    checkComeBack();
+
+    // Intermediate Logic on all Come Back tiles
+    for (auto comeBackTile : this->comeBackLaterSet) {
+      int currX = comeBackTile.x;
+      int currY = comeBackTile.y;
+      // identify and store all surrounding tiles
+      vector<Coordinate> allCoveredTile;
+      vector<Coordinate> allComeBackTile;
+      vector<Coordinate> allOtherTile;
+      grabSurrTiles(currX, currY, allCoveredTile, allComeBackTile,
+                    allOtherTile);
+
+      // #TODO: check possible bomb possition and see valid or not
+
+      bitset<8> truthTablePos;
+      int numPossiblePos = allCoveredTile.size();
+    }
   }
 
   // ****************************************************************
@@ -93,17 +111,58 @@ Agent::Action MyAI::getAction(int number) {
     this->agentY = next.y;
     return next;
   }
-
+  // Exhausted all Action we leave
   return {LEAVE, -1, -1};
+}
+
+void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
+                         vector<Coordinate> &comeBackTails,
+                         vector<Coordinate> &otherTiles) {
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      int currX = x + i;
+      int currY = y + j;
+
+      // bounds check
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+        continue;
+      }
+      if (comeBackLaterSet.find({currX, currY}) != comeBackLaterSet.end()) {
+        // found a neighboring tile that is also in the come back later set
+        comeBackTails.push_back({currX, currY});
+      } else if (getTileStatus(currX, currY) == COVERED) {
+        //
+        coverTiles.push_back({currX, currY});
+      } else {
+        otherTiles.push_back({currX, currY});
+      }
+    }
+  }
+}
+
+void MyAI::checkComeBack() {
+  // checks the previous unclear tiles
+  vector<Coordinate> nowSetTiles;
+
+  for (auto i : comeBackLaterSet) {
+    if (easyRules(i.x, i.y)) {
+      nowSetTiles.push_back(i);
+    }
+  }
+  for (auto i : nowSetTiles) {
+    comeBackLaterSet.erase(i);
+  }
 }
 
 /*
   Reveal the rest of the covered squares if flagged tiles = total # of bombs
   (meaning we found all bombs)
 */
-void MyAI::revealAllSquare() {
-  if (this->totalMines != this->discovered_bomb)
+void MyAI::revealAllSquares() {
+  // Just for safety
+  if (this->totalMines != this->discovered_bomb) {
     return;
+  }
 
   int numCol = this->colDimension;
   int numRow = this->rowDimension;
@@ -118,26 +177,31 @@ void MyAI::revealAllSquare() {
 }
 
 /*
-  Add action we know for sure to do around (x, y) to queue
+  Add action to queue that we know for sure to do around (x, y)
 */
-bool MyAI::addForSureAround(int x, int y) {
+bool MyAI::easyRules(int x, int y) {
   bool allClear = false;
   int centerVal = getTileValue(x, y);
   int numCoveredNeighbor = -1;
   int numFlaggedNeighbor = -1;
   neighbors(x, y, numCoveredNeighbor, numFlaggedNeighbor);
 
+  // We can't figure anything out
   if (centerVal != 0 && numCoveredNeighbor != centerVal &&
       numFlaggedNeighbor != centerVal) {
     return allClear;
   }
+
+  // We can easily figure something out, so we iterate through each
+  // surrounding tile
   allClear = true;
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
       int currX = x + i;
       int currY = y + j;
-      if ((i == 0 && j == 0) || currX < 0 || currX >= this->colDimension ||
-          currY < 0 || currY >= this->rowDimension) {
+
+      // bounds check
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
         continue;
       }
       TileStatus currStat = getTileStatus(currX, currY);
@@ -153,8 +217,9 @@ bool MyAI::addForSureAround(int x, int y) {
       else if (centerVal == numCoveredNeighbor) {
         if (currStat == COVERED) {
           setTileStatus(currX, currY, FLAGGED);
+          // NOTE: This line is just for visualization purposes for
+          // debugging Comment this line if not debugging
           nextMoves.push({Action_type::FLAG, currX, currY});
-          // setTileStatus(currX, currY, INQ);
           ++discovered_bomb;
         }
       }
@@ -170,13 +235,31 @@ bool MyAI::addForSureAround(int x, int y) {
   return allClear;
 }
 
+/*
+  Update the tile at (x, y) with value = number
+*/
 void MyAI::updateVecs(int number, int x, int y) {
   if (number == -1)
     return;
   setTileStatus(x, y, UNCOVERED);
   setTileValue(x, y, number);
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      int currX = x + i;
+      int currY = y + j;
+
+      // bound check
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+        continue;
+      }
+      setTilePossi(currX, currY, number);
+    }
+  }
 }
 
+/*
+  Check if a given coordinate (x, y) is within bound of the map
+*/
 bool MyAI::inBounds(int x, int y) {
   return x >= 0 && x < this->colDimension && y >= 0 && y < this->rowDimension;
 }
@@ -193,11 +276,9 @@ void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
       int currX = x + i;
       int currY = y + j;
 
-      if ((i == 0 && j == 0) || currX < 0 || currX >= this->colDimension ||
-          currY < 0 || currY >= this->rowDimension) {
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
         continue;
       }
-
       if (getTileStatus(currX, currY) == COVERED) {
         numCoveredNeighbors++;
       }
@@ -209,6 +290,9 @@ void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
   }
 }
 
+/*
+  Return the number of covered tiles around (x, y) including flagged ones
+*/
 int MyAI::countNearCovered(int x, int y) {
   int count = 0;
   for (int i = -1; i <= 1; ++i) {
@@ -225,6 +309,9 @@ int MyAI::countNearCovered(int x, int y) {
   return count;
 }
 
+/*
+  Return the number of flagged tiles around (x, y)
+*/
 int MyAI::countNearFlag(int x, int y) {
   int count = 0;
   for (int i = -1; i <= 1; ++i) {
@@ -240,19 +327,9 @@ int MyAI::countNearFlag(int x, int y) {
   return count;
 }
 
-MyAI::TileStatus MyAI::getTileStatus(int x, int y) {
-  return this->boardStatus.at(y).at(x);
-}
-
-void MyAI::setTileStatus(int x, int y, TileStatus newStat) {
-  this->boardStatus.at(y).at(x) = newStat;
-}
-
-int MyAI::getTileValue(int x, int y) { return this->boardValues.at(y).at(x); }
-void MyAI::setTileValue(int x, int y, int newVal) {
-  this->boardValues.at(y).at(x) = newVal;
-}
-
+/*
+  Print out the current boardStatus map to cout
+*/
 void MyAI::printVecs() {
   int numRows = this->rowDimension;
   int numCols = this->colDimension;
@@ -270,5 +347,33 @@ void MyAI::printVecs() {
       cout << boardValues.at(row).at(col) << ",";
     }
     cout << endl;
+  }
+}
+
+//==================================================
+// Getter & Setters
+//==================================================
+
+MyAI::TileStatus MyAI::getTileStatus(int x, int y) {
+  return this->boardStatus.at(y).at(x);
+}
+
+void MyAI::setTileStatus(int x, int y, TileStatus newStat) {
+  this->boardStatus.at(y).at(x) = newStat;
+}
+
+int MyAI::getTileValue(int x, int y) { return this->boardValues.at(y).at(x); }
+
+void MyAI::setTileValue(int x, int y, int newVal) {
+  this->boardValues.at(y).at(x) = newVal;
+}
+
+int MyAI::getTilePossi(int x, int y) { return this->possiTable.at(y).at(x); }
+
+void MyAI::setTilePossi(int x, int y, int newVal) {
+  if (getTilePossi(x, y) == 100) {
+    this->possiTable.at(y).at(x) = newVal;
+  } else {
+    this->possiTable.at(y).at(x) += newVal;
   }
 }
