@@ -86,17 +86,39 @@ Agent::Action MyAI::getAction(int number) {
     for (auto comeBackTile : this->comeBackLaterSet) {
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
-      // identify and store all surrounding tiles
-      vector<Coordinate> allCoveredTile;
-      vector<Coordinate> allComeBackTile;
-      vector<Coordinate> allOtherTile;
-      grabSurrTiles(currX, currY, allCoveredTile, allComeBackTile,
-                    allOtherTile);
 
-      // #TODO: check possible bomb possition and see valid or not
+      // Find each surrounding tile that is uncovered
+      for (int i = -1; i <= 1; ++i) {
+        for (int j = -1; j <= 1; ++j) {
+          int neighX = x + i;
+          int neighY = y + j;
 
-      bitset<8> truthTablePos;
-      int numPossiblePos = allCoveredTile.size();
+          // bounds check
+          if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+            continue;
+          }
+
+          // We want to perform intermediate logic on curr node and neighbor
+          if (getTileStatus(neighX, neighY) == UNCOVERED) {
+            int numCovered, numFlags;
+            neighbors(currX, currY, numCovered, numFlags);
+
+            // Get effective value
+            int effectiveVal = getTileValue(currX, currY) - numFlags;
+
+            // Get size of truth table
+            int ttSize = 1 << numCovered;
+
+            // Iterate through each value in truth table
+            for (int row = 0; row < ttSize; ++row) {
+              // Check if row is valid
+            }
+
+            // for each valid row, check to see if there are any similarities.
+            // Any similarity across each row must be true.
+          }
+        }
+      }
     }
   }
 
