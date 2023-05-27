@@ -72,6 +72,7 @@ private:
   void grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                      vector<Coordinate> &comeBackTails,
                      vector<Coordinate> &otherTiles);
+  bool checkIsPossible(int x, int y);
 
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);

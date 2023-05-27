@@ -78,10 +78,13 @@ Agent::Action MyAI::getAction(int number) {
   }
 
   // If nextMoves queue is empty, check our come back later set
-  // #TODO: add the prediction logic
   if (nextMoves.empty()) {
     checkComeBack();
+  }
 
+  // still empty after chekcing easy logic on comeback set
+  // #TODO: add the Intermediate logic
+  if (nextMoves.empty()) {
     // Intermediate Logic on all Come Back tiles
     for (auto comeBackTile : this->comeBackLaterSet) {
       int currX = comeBackTile.x;
@@ -95,11 +98,46 @@ Agent::Action MyAI::getAction(int number) {
 
       // #TODO: check possible bomb possition and see valid or not
 
-      bitset<8> truthTablePos;
-      int numPossiblePos = allCoveredTile.size();
+      int ttableSize = pow(2, allCoveredTile.size());
+      int count = 0;
+      /*
+        go through all the come back later tiles then check if the tile is
+        valid. Remove any  that is not valid. Find th common spot that can be a
+        zero
+      */
+      vector<int> validCombination;
+      while (count < ttableSize) {
+        // going through each entry in truth table look for valid values
+        vector<int> bitTable(allCoveredTile.size());
+        int copy = count;
+
+        // grab the bit representation of the current truth table row
+        for (int i = 0; i < bitTable.size(); i++) {
+          bitTable[i] = copy % 2;
+          copy /= 2;
+        }
+
+        // set the covered tile to value at truth table row
+        for (int i = 0; i < bitTable.size(); i++) {
+          Coordinate currtargettile = allCoveredTile[i];
+          if (bitTable[i] == 1) {
+            setTileStatus(currtargettile.x, currtargettile.y, FLAGGED);
+          }
+        }
+
+        // check validity after setting flagging as bomb
+        if (checkIsPossible(currX, currY)) {
+          validCombination.push_back(count);
+        }
+        // set the tiles back to covered
+        for (int i = 0; i < bitTable.size(); i++) {
+          Coordinate currtargettile = allCoveredTile[i];
+          setTileStatus(currtargettile.x, currtargettile.y, COVERED);
+        }
+        ++count;
+      }
     }
   }
-
   // ****************************************************************
   // Check what to return next
   // ****************************************************************
@@ -113,6 +151,11 @@ Agent::Action MyAI::getAction(int number) {
   }
   // Exhausted all Action we leave
   return {LEAVE, -1, -1};
+}
+
+bool MyAI::checkIsPossible(int x, int y) {
+  // TODO: git gud and implement this
+  return getTileValue(x, y) == countNearFlag(x, y);
 }
 
 void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
@@ -131,7 +174,6 @@ void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
         // found a neighboring tile that is also in the come back later set
         comeBackTails.push_back({currX, currY});
       } else if (getTileStatus(currX, currY) == COVERED) {
-        //
         coverTiles.push_back({currX, currY});
       } else {
         otherTiles.push_back({currX, currY});
@@ -291,7 +333,7 @@ void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
 }
 
 /*
-  Return the number of covered tiles around (x, y) including flagged ones
+  Return the number of covered tiles around (x, y) excluding flagged ones
 */
 int MyAI::countNearCovered(int x, int y) {
   int count = 0;
@@ -300,8 +342,7 @@ int MyAI::countNearCovered(int x, int y) {
       int currX = x + i;
       int currY = y + j;
       TileStatus currStat = getTileStatus(currX, currY);
-      if (i != 0 && j != 0 && inBounds(currX, currY) &&
-          (currStat == COVERED || currStat == FLAGGED)) {
+      if (i != 0 && j != 0 && inBounds(currX, currY) && currStat == COVERED) {
         ++count;
       }
     }
