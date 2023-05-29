@@ -35,11 +35,13 @@ using namespace std;
 struct Coordinate {
   int x;
   int y;
-
-  bool operator()(const Coordinate &lhs, const Coordinate &rhs) const {
-    return (lhs.x == rhs.x && lhs.y < rhs.y) ||
-           (lhs.y == rhs.y && lhs.x < rhs.x) ||
-           (lhs.x < rhs.x && lhs.y < rhs.y);
+  bool operator<(const Coordinate &rhs) const {
+    return (this->x == rhs.x && this->y < rhs.y) ||
+           (this->y == rhs.y && this->x < rhs.x) ||
+           (this->x < rhs.x && this->y < rhs.y);
+  }
+  bool operator==(const Coordinate &rhs) const {
+    return this->x == rhs.x && this->y == rhs.y;
   }
 };
 
@@ -47,7 +49,7 @@ class MyAI : public Agent {
 private:
   enum TileStatus { COVERED, UNCOVERED, FLAGGED, INQ };
   queue<Action> nextMoves;
-  set<Coordinate, Coordinate> comeBackLaterSet;
+  set<Coordinate> comeBackLaterSet;
   vector<vector<TileStatus>> boardStatus;
   vector<vector<int>> boardValues;
   vector<vector<int>> possiTable;
@@ -72,7 +74,8 @@ private:
   void grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                      vector<Coordinate> &comeBackTails,
                      vector<Coordinate> &otherTiles);
-  bool checkIsPossible(int x, int y);
+
+  bool checkIsPossible(int x, int y, set<Coordinate> &visited);
 
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);

@@ -64,6 +64,9 @@ Agent::Action MyAI::getAction(int number) {
 
   // Revealed tile doesnt give enough info
   if (!allClear) {
+    cout << "**************" << endl;
+    cout << "Inserting into comeBack(" << x + 1 << ", " << y + 1 << ")" << endl;
+    cout << "**************" << endl;
     comeBackLaterSet.insert({x, y});
   } else {
     // Now that we have a tile that satisifed an easy rule, check neighbors to
@@ -79,16 +82,20 @@ Agent::Action MyAI::getAction(int number) {
 
   // If nextMoves queue is empty, check our come back later set
   if (nextMoves.empty()) {
+    cout << "QUEUE is empty, ComeBack easy check" << endl;
     checkComeBack();
   }
 
   // still empty after chekcing easy logic on comeback set
   // #TODO: add the Intermediate logic
   if (nextMoves.empty()) {
+    cout << "QUEUE is empty, ComeBack advance check" << endl;
     // Intermediate Logic on all Come Back tiles
     for (auto comeBackTile : this->comeBackLaterSet) {
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
+      cout << "\tChekcing comback (" << currX + 1 << ", " << currY + 1 << ")"
+           << endl;
       // identify and store all surrounding tiles
       vector<Coordinate> allCoveredTile;
       vector<Coordinate> allComeBackTile;
@@ -97,9 +104,10 @@ Agent::Action MyAI::getAction(int number) {
                     allOtherTile);
 
       // #TODO: check possible bomb possition and see valid or not
-
       int ttableSize = pow(2, allCoveredTile.size());
       int count = 0;
+      cout << "\t\tTruth Table size = 2^" << allCoveredTile.size() << " = "
+           << ttableSize << endl;
       /*
         go through all the come back later tiles then check if the tile is
         valid. Remove any  that is not valid. Find th common spot that can be a
@@ -107,6 +115,10 @@ Agent::Action MyAI::getAction(int number) {
       */
       vector<int> validCombination;
       while (count < ttableSize) {
+        cout << "\t\t**************" << endl;
+        cout << "\t\tCombination " << count << " = " << bitset<7>(count)
+             << endl;
+        cout << "\t\t**************" << endl;
         // going through each entry in truth table look for valid values
         vector<int> bitTable(allCoveredTile.size());
         int copy = count;
@@ -122,12 +134,18 @@ Agent::Action MyAI::getAction(int number) {
           Coordinate currtargettile = allCoveredTile[i];
           if (bitTable[i] == 1) {
             setTileStatus(currtargettile.x, currtargettile.y, FLAGGED);
+          } else {
+            setTileStatus(currtargettile.x, currtargettile.y, COVERED);
           }
         }
 
         // check validity after setting flagging as bomb
-        if (checkIsPossible(currX, currY)) {
+        set<Coordinate> visited;
+        if (checkIsPossible(currX, currY, visited)) {
           validCombination.push_back(count);
+          cout << "\t\tPossible combination" << endl;
+        } else {
+          cout << "\t\tNot Possible combination" << endl;
         }
         // set the tiles back to covered
         for (int i = 0; i < bitTable.size(); i++) {
@@ -135,6 +153,28 @@ Agent::Action MyAI::getAction(int number) {
           setTileStatus(currtargettile.x, currtargettile.y, COVERED);
         }
         ++count;
+      }
+
+      // TODO: check common variable across the possible combination
+      vector<int> sumTable(allCoveredTile.size());
+
+      // count the bits in the valid combination. If equals to
+      // validCombination.size that means that bit appeared in all the
+      // combination meaning it is safe to uncover
+      for (int i : validCombination) {
+        int copy = i;
+        // grab the bit representation of the current truth table row
+        for (int i = 0; i < sumTable.size(); i++) {
+          sumTable[i] += copy % 2;
+          copy /= 2;
+        }
+      }
+      for (int i = 0; i < sumTable.size(); i++) {
+        if (sumTable[i] == validCombination.size()) {
+          Coordinate validTile = allCoveredTile[i];
+          nextMoves.push({Action_type::UNCOVER, validTile.x, validTile.y});
+          setTileStatus(validTile.x, validTile.y, INQ);
+        }
       }
     }
   }
@@ -153,14 +193,48 @@ Agent::Action MyAI::getAction(int number) {
   return {LEAVE, -1, -1};
 }
 
-bool MyAI::checkIsPossible(int x, int y) {
+bool MyAI::checkIsPossible(int x, int y, set<Coordinate> &visited) {
   // TODO: git gud and implement this
-  return getTileValue(x, y) == countNearFlag(x, y);
+  cout << "\t\t\tChekcing possible for (" << x + 1 << ", " << y + 1 << ")"
+       << endl;
+
+  // current checking tile alread in the visited set
+  if (visited.find({x, y}) != visited.end()) {
+    cout << "\t\t\t ALREADY SEEN (" << x + 1 << ", " << y + 1
+         << ") = " << (getTileValue(x, y) == countNearFlag(x, y)) << endl;
+    return countNearFlag(x, y) <= getTileValue(x, y);
+  } else {
+    visited.insert({x, y});
+  }
+
+  // Grab surrounding tiles
+  vector<Coordinate> allCoveredTile;
+  vector<Coordinate> allComeBackTile;
+  vector<Coordinate> allOtherTile;
+  grabSurrTiles(x, y, allCoveredTile, allComeBackTile, allOtherTile);
+
+  bool goodForOther = true;
+
+  // recursively check if the current setup good for other tiles
+  for (int i = 0; i < allComeBackTile.size() && goodForOther; i++) {
+    visited.insert(allComeBackTile[i]);
+    // comeBackLaterSet.erase(allComeBackTile[i]);
+    goodForOther =
+        checkIsPossible(allComeBackTile[i].x, allComeBackTile[i].y, visited);
+    // comeBackLaterSet.insert(allComeBackTile[i]);
+  }
+
+  cout << "\t\t\t(" << x + 1 << ", " << y + 1
+       << ") = " << (getTileValue(x, y) == countNearFlag(x, y) && goodForOther)
+       << endl;
+  return countNearFlag(x, y) <= getTileValue(x, y) && goodForOther;
 }
 
 void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                          vector<Coordinate> &comeBackTails,
                          vector<Coordinate> &otherTiles) {
+  cout << "\t\tGrabbing tiles around(" << x + 1 << ", " << y + 1 << "): ";
+
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
       int currX = x + i;
@@ -170,16 +244,22 @@ void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
       if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
         continue;
       }
-      if (comeBackLaterSet.find({currX, currY}) != comeBackLaterSet.end()) {
+
+      if (getTileStatus(currX, currY) == COVERED) {
+        coverTiles.push_back({currX, currY});
+        cout << "(" << currX + 1 << ", " << currY + 1 << ") C, ";
+      } else if (comeBackLaterSet.find({currX, currY}) !=
+                 comeBackLaterSet.end()) {
         // found a neighboring tile that is also in the come back later set
         comeBackTails.push_back({currX, currY});
-      } else if (getTileStatus(currX, currY) == COVERED) {
-        coverTiles.push_back({currX, currY});
+        cout << "(" << currX + 1 << ", " << currY + 1 << ") CB, ";
       } else {
+        cout << "(" << currX + 1 << ", " << currY + 1 << ") O, ";
         otherTiles.push_back({currX, currY});
       }
     }
   }
+  cout << endl;
 }
 
 void MyAI::checkComeBack() {
@@ -285,6 +365,8 @@ void MyAI::updateVecs(int number, int x, int y) {
     return;
   setTileStatus(x, y, UNCOVERED);
   setTileValue(x, y, number);
+
+  // This is an attempt to tile up the possible bomb position and guess
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
       int currX = x + i;
