@@ -19,6 +19,9 @@
 
 #include "MyAI.hpp"
 
+vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
+                                const vector<Coordinate> neighCoords);
+
 MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
            int _agentY)
     : Agent() {
@@ -83,9 +86,35 @@ Agent::Action MyAI::getAction(int number) {
     checkComeBack();
 
     // Intermediate Logic on all Come Back tiles
+
+    // Stores the number of 1's (bombs) of the number of the index
+    // i.e. 0 maps to 0 bombs, 7 maps to 3 bombs...
+    vector<int> lookupTable{
+        0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4,
+        2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4,
+        2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,
+        4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5,
+        3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,
+        4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+        4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
     for (auto comeBackTile : this->comeBackLaterSet) {
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
+
+      // Get info of center tile
+      int numCoveredMain, numFlagsMain;
+      vector<Coordinate> coordsMain;
+      neighbors(currX, currY, coordsMain, numCoveredMain, numFlagsMain);
+
+      // Get effective value
+      int effectiveValMain = getTileValue(currX, currY) - numFlagsMain;
+
+      // Get truth table size
+      int ttSize = 1 << effectiveValMain;
 
       // Find each surrounding tile that is uncovered
       for (int i = -1; i <= 1; ++i) {
@@ -94,24 +123,80 @@ Agent::Action MyAI::getAction(int number) {
           int neighY = y + j;
 
           // bounds check
-          if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+          if ((i == 0 && j == 0) || !inBounds(neighX, neighY)) {
             continue;
           }
 
           // We want to perform intermediate logic on curr node and neighbor
           if (getTileStatus(neighX, neighY) == UNCOVERED) {
-            int numCovered, numFlags;
-            neighbors(currX, currY, numCovered, numFlags);
+            // Get details of neighbor tile
+            int numCoveredNeigh, numFlagsNeigh;
+            vector<Coordinate> coordsNeigh;
+            neighbors(neighX, neighY, coordsNeigh, numCoveredNeigh,
+                      numFlagsNeigh);
 
             // Get effective value
-            int effectiveVal = getTileValue(currX, currY) - numFlags;
+            int effectiveValNeigh =
+                getTileValue(neighX, neighY) - numFlagsNeigh;
 
-            // Get size of truth table
-            int ttSize = 1 << numCovered;
+            // Find bomb similarities between curr and neigh
+            vector<Coordinate> sims = similarities(coordsMain, coordsNeigh);
+            int shareCase;
+            // Case 1
+            if (sims.size() == coordsNeigh.size()) {
+              shareCase = 1;
+            }
+            // Case 2
+            else if (sims.size() == 0) {
+              shareCase = 2;
+            }
+            // Case 3
+            else {
+              shareCase = 3;
+            }
 
-            // Iterate through each value in truth table
+            // Iterate through each value in truth table to determine validity
+            vector<int> validRows;
             for (int row = 0; row < ttSize; ++row) {
-              // Check if row is valid
+              // Two things to consider:
+              // 1. Is total number of bombs correct?
+              // 2. Is number of bombs for both uncovered tile valid
+
+              // 1:
+              int numBombs = lookupTable.at(row);
+              if (numBombs != effectiveValMain) {
+                continue;
+              }
+
+              // 2:
+              // Need to check if neigh bomb count
+              int neighBombCount = 0;
+
+              int spot = row;
+              int loc = 0;
+              while (spot) {
+                // Check if first spot has a bomb
+                if (spot & 1) {
+                  Coordinate bombLoc = coordsMain.at(loc);
+                  // Check if this bombLoc is also in neighbor
+                  for (Coordinate c : coordsNeigh) {
+                    if (c == bombLoc) {
+                      ++neighBombCount;
+                      break;
+                    }
+                  }
+                }
+
+                ++loc;
+                spot >>= 1;
+              }
+
+              if ((shareCase == 1 && neighBombCount != effectiveValNeigh) ||
+                  (shareCase == 3 && neighBombCount > effectiveValNeigh)) {
+                continue;
+              }
+
+              validRows.push_back(row);
             }
 
             // for each valid row, check to see if there are any similarities.
@@ -312,6 +397,31 @@ void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
   }
 }
 
+void MyAI::neighbors(int x, int y, vector<Coordinate> &coords,
+                     int &numCoveredNeighbors, int &numFlags) {
+  numCoveredNeighbors = 0;
+  numFlags = 0;
+
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      int currX = x + i;
+      int currY = y + j;
+
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+        continue;
+      }
+      if (getTileStatus(currX, currY) == COVERED) {
+        numCoveredNeighbors++;
+        coords.push_back({currX, currY});
+      }
+      if (getTileStatus(currX, currY) == FLAGGED) {
+        numCoveredNeighbors++;
+        numFlags++;
+      }
+    }
+  }
+}
+
 /*
   Return the number of covered tiles around (x, y) including flagged ones
 */
@@ -398,4 +508,23 @@ void MyAI::setTilePossi(int x, int y, int newVal) {
   } else {
     this->possiTable.at(y).at(x) += newVal;
   }
+}
+
+//==================================================
+// Helpers
+//==================================================
+
+vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
+                                const vector<Coordinate> neighCoords) {
+  vector<Coordinate> similarities;
+  // FIXME: make more efficient
+  for (Coordinate i : mainCoords) {
+    for (Coordinate j : neighCoords) {
+      if (i == j) {
+        similarities.push_back(i);
+        break;
+      }
+    }
+  }
+  return similarities;
 }

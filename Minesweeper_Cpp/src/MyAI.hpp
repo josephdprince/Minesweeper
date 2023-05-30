@@ -41,6 +41,8 @@ struct Coordinate {
            (lhs.y == rhs.y && lhs.x < rhs.x) ||
            (lhs.x < rhs.x && lhs.y < rhs.y);
   }
+
+  bool operator==(const Coordinate &rhs) { return x == rhs.x && y == rhs.y; }
 };
 
 class MyAI : public Agent {
@@ -63,6 +65,8 @@ private:
   void updateVecs(int number, int x, int y);
   bool inBounds(int x, int y);
   void neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags);
+  void neighbors(int x, int y, vector<Coordinate> &coords,
+                 int &numCoveredNeighbors, int &numFlags);
   int countNearCovered(int x, int y);
   int countNearFlag(int x, int y);
   bool easyRules(int x, int y);
