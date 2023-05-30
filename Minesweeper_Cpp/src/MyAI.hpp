@@ -23,7 +23,6 @@
 #include "Agent.hpp"
 #include <algorithm>
 #include <bitset>
-#include <cmath>
 #include <iostream> // FIXME: temporary use
 #include <map>
 #include <queue>
@@ -35,13 +34,13 @@ using namespace std;
 struct Coordinate {
   int x;
   int y;
-  bool operator<(const Coordinate &rhs) const {
-    return (this->x == rhs.x && this->y < rhs.y) ||
-           (this->y == rhs.y && this->x < rhs.x) ||
-           (this->x < rhs.x && this->y < rhs.y);
-  }
+  bool operator<(const Coordinate &rhs) const { return x < rhs.x || y < rhs.y; }
   bool operator==(const Coordinate &rhs) const {
     return this->x == rhs.x && this->y == rhs.y;
+  }
+  ostream &operator<<(ostream &ost) {
+    ost << "(" << x + 1 << ", " << y + 1 << ")";
+    return ost;
   }
 };
 
@@ -54,6 +53,7 @@ private:
   vector<vector<int>> boardValues;
   vector<vector<int>> possiTable;
   int discovered_bomb;
+  bool global_debug = false;
 
 public:
   MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
@@ -68,15 +68,19 @@ private:
   int countNearCovered(int x, int y);
   int countNearFlag(int x, int y);
   bool easyRules(int x, int y);
-  void printVecs();
   void revealAllSquares();
   void checkComeBack();
   void grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                      vector<Coordinate> &comeBackTails,
                      vector<Coordinate> &otherTiles);
 
-  bool checkIsPossible(int x, int y, set<Coordinate> &visited);
-
+  bool checkIsPossible(int x, int y, const Coordinate original,
+                       set<Coordinate> &visited);
+  bool isInSet(Coordinate target, set<Coordinate> &targetSet);
+  bool isInVec(Coordinate target, vector<Coordinate> &targetVec);
+  void printSet(set<Coordinate> &target);
+  void printVec(vector<Coordinate> &target);
+  void printCurrMaps();
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);
   int getTileValue(int x, int y);
