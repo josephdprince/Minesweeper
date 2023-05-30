@@ -81,7 +81,6 @@ Agent::Action MyAI::getAction(int number) {
   }
 
   // If nextMoves queue is empty, check our come back later set
-  // #TODO: add the prediction logic
   if (nextMoves.empty()) {
     checkComeBack();
 
@@ -201,6 +200,59 @@ Agent::Action MyAI::getAction(int number) {
 
             // for each valid row, check to see if there are any similarities.
             // Any similarity across each row must be true.
+
+            // Base case 1: validRows is empty (do nothing)
+            // Base case 2: validRows has size 1
+            vector<bool> matches(numCoveredMain, true);
+            if (!validRows.empty()) {
+              if (validRows.size() == 1) {
+                int result = validRows.at(0);
+                for (int l = 0; l < numCoveredMain; ++l) {
+                  if (result & 1) {
+                    setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+                                  FLAGGED);
+                    nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
+                                    coordsMain.at(l).y});
+                  } else {
+                    setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y, INQ);
+                    nextMoves.push({Action_type::UNCOVER, coordsMain.at(l).x,
+                                    coordsMain.at(l).y});
+                  }
+                  result >>= 1;
+                }
+              } else {
+                int prev = validRows.at(0);
+                int curr;
+
+                for (int k = 1; k < validRows.size(); ++k) {
+                  curr = validRows.at(k);
+                  int result = curr ^ prev;
+                  for (int l = 0; l < numCoveredMain; ++l) {
+                    if (!(result & 1)) {
+                      matches.at(l) = false;
+                    }
+                    result >>= 1;
+                  }
+                  prev = curr;
+                }
+
+                for (int m = 0; m < matches.size(); ++m) {
+                  if (matches.at(m) == true) {
+                    if ((validRows.at(0) >> m) & 1) {
+                      setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+                                    FLAGGED);
+                      nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
+                                      coordsMain.at(m).y});
+                    } else {
+                      setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+                                    INQ);
+                      nextMoves.push({Action_type::UNCOVER, coordsMain.at(m).x,
+                                      coordsMain.at(m).y});
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
