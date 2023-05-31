@@ -63,16 +63,20 @@ Agent::Action MyAI::getAction(int number) {
   // Select what to push into the next action queue based
   // on the number reveal by last action
   // ****************************************************************
-  bool allClear = easyRules(x, y);
+  if (number != -1) {
+    bool allClear = easyRules(x, y);
 
-  // Revealed tile doesnt give enough info
-  if (!allClear) {
-    comeBackLaterSet.insert({x, y});
-  } else {
-    // Now that we have a tile that satisifed an easy rule, check neighbors to
-    // see if they are in the come back set. If so, check them again with easy
-    // rules
-    checkComeBack();
+    // Revealed tile doesnt give enough info
+    if (!allClear) {
+      cout << "Adding to the come back later set: (" << x + 1 << ", " << y + 1
+           << ")" << endl;
+      comeBackLaterSet.insert({x, y});
+    } else {
+      // Now that we have a tile that satisifed an easy rule, check neighbors to
+      // see if they are in the come back set. If so, check them again with easy
+      // rules
+      checkComeBack();
+    }
   }
 
   // Found all bombs and reveal the rest that are not flagged
@@ -83,7 +87,9 @@ Agent::Action MyAI::getAction(int number) {
   // If nextMoves queue is empty, check our come back later set
   if (nextMoves.empty()) {
     checkComeBack();
+  }
 
+  if (nextMoves.empty()) {
     // Intermediate Logic on all Come Back tiles
 
     // Stores the number of 1's (bombs) of the number of the index
@@ -101,25 +107,39 @@ Agent::Action MyAI::getAction(int number) {
         4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
         4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
     for (auto comeBackTile : this->comeBackLaterSet) {
+      cout << "Something is in the comeback tile" << endl;
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
+
+      cout << "It is (" << currX + 1 << "," << currY + 1 << ")" << endl;
 
       // Get info of center tile
       int numCoveredMain, numFlagsMain;
       vector<Coordinate> coordsMain;
       neighbors(currX, currY, coordsMain, numCoveredMain, numFlagsMain);
 
+      cout << "Num covered: " << numCoveredMain << endl;
+
       // Get effective value
       int effectiveValMain = getTileValue(currX, currY) - numFlagsMain;
+      cout << "effective val: " << effectiveValMain << endl;
+      cout << "num flags: " << numFlagsMain << endl;
+      cout << "tile value: " << getTileValue(currX, currY) << endl;
 
       // Get truth table size
       int ttSize = 1 << effectiveValMain;
+
+      cout << "\n\n\n\nTTSIZE: " << ttSize << "\n\n\n\n";
 
       // Find each surrounding tile that is uncovered
       for (int i = -1; i <= 1; ++i) {
         for (int j = -1; j <= 1; ++j) {
           int neighX = x + i;
           int neighY = y + j;
+
+          if (i == 1 && j == 1) {
+            cout << "LAST ONE!!!!" << endl;
+          }
 
           // bounds check
           if ((i == 0 && j == 0) || !inBounds(neighX, neighY)) {
@@ -128,6 +148,8 @@ Agent::Action MyAI::getAction(int number) {
 
           // We want to perform intermediate logic on curr node and neighbor
           if (getTileStatus(neighX, neighY) == UNCOVERED) {
+            cout << "We have an uncovered neighbor (" << neighX + 1 << ", "
+                 << neighY + 1 << ")" << endl;
             // Get details of neighbor tile
             int numCoveredNeigh, numFlagsNeigh;
             vector<Coordinate> coordsNeigh;
@@ -154,45 +176,61 @@ Agent::Action MyAI::getAction(int number) {
               shareCase = 3;
             }
 
+            cout << "Case is set to: " << shareCase << endl;
+
             // Iterate through each value in truth table to determine validity
             vector<int> validRows;
             for (int row = 0; row < ttSize; ++row) {
               // Two things to consider:
-              // 1. Is total number of bombs correct?
+              // 1. Is total number of bombs correct
               // 2. Is number of bombs for both uncovered tile valid
 
               // 1:
-              int numBombs = lookupTable.at(row);
+              int numBombs;
+              // try {
+              // cout << "row: " << row << endl;
+              numBombs = lookupTable.at(row);
+              // } catch (const std::exception &exc) {
+              //   cout << "The error is happening here1" << endl;
+              // }
               if (numBombs != effectiveValMain) {
                 continue;
               }
+              cout << "Did i make it here?" << endl;
 
               // 2:
               // Need to check if neigh bomb count
-              int neighBombCount = 0;
+              if (shareCase != 2) {
+                int neighBombCount = 0;
 
-              int spot = row;
-              int loc = 0;
-              while (spot) {
-                // Check if first spot has a bomb
-                if (spot & 1) {
-                  Coordinate bombLoc = coordsMain.at(loc);
-                  // Check if this bombLoc is also in neighbor
-                  for (Coordinate c : coordsNeigh) {
-                    if (c == bombLoc) {
-                      ++neighBombCount;
-                      break;
+                int spot = row;
+                int loc = 0;
+                while (spot) {
+                  // Check if first spot has a bomb
+                  if (spot & 1) {
+                    Coordinate bombLoc;
+                    try {
+                      bombLoc = coordsMain.at(loc);
+                    } catch (const std::exception &exc) {
+                      cout << "The error is happening here2" << endl;
+                    }
+                    // Check if this bombLoc is also in neighbor
+                    for (Coordinate c : coordsNeigh) {
+                      if (c == bombLoc) {
+                        ++neighBombCount;
+                        break;
+                      }
                     }
                   }
+
+                  ++loc;
+                  spot >>= 1;
                 }
 
-                ++loc;
-                spot >>= 1;
-              }
-
-              if ((shareCase == 1 && neighBombCount != effectiveValNeigh) ||
-                  (shareCase == 3 && neighBombCount > effectiveValNeigh)) {
-                continue;
+                if ((shareCase == 1 && neighBombCount != effectiveValNeigh) ||
+                    (shareCase == 3 && neighBombCount > effectiveValNeigh)) {
+                  continue;
+                }
               }
 
               validRows.push_back(row);
@@ -203,59 +241,68 @@ Agent::Action MyAI::getAction(int number) {
 
             // Base case 1: validRows is empty (do nothing)
             // Base case 2: validRows has size 1
-            vector<bool> matches(numCoveredMain, true);
-            if (!validRows.empty()) {
-              if (validRows.size() == 1) {
-                int result = validRows.at(0);
-                for (int l = 0; l < numCoveredMain; ++l) {
-                  if (result & 1) {
-                    setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
-                                  FLAGGED);
-                    nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
-                                    coordsMain.at(l).y});
-                  } else {
-                    setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y, INQ);
-                    nextMoves.push({Action_type::UNCOVER, coordsMain.at(l).x,
-                                    coordsMain.at(l).y});
-                  }
-                  result >>= 1;
-                }
-              } else {
-                int prev = validRows.at(0);
-                int curr;
-
-                for (int k = 1; k < validRows.size(); ++k) {
-                  curr = validRows.at(k);
-                  int result = curr ^ prev;
+            try {
+              vector<bool> matches(numCoveredMain, true);
+              if (!validRows.empty()) {
+                cout << "We had some extra stuff with intermediate logic"
+                     << endl;
+                if (validRows.size() == 1) {
+                  int result = validRows.at(0);
                   for (int l = 0; l < numCoveredMain; ++l) {
-                    if (!(result & 1)) {
-                      matches.at(l) = false;
+                    if (result & 1) {
+                      setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+                                    FLAGGED);
+                      nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
+                                      coordsMain.at(l).y});
+                    } else {
+                      setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+                                    INQ);
+                      nextMoves.push({Action_type::UNCOVER, coordsMain.at(l).x,
+                                      coordsMain.at(l).y});
                     }
                     result >>= 1;
                   }
-                  prev = curr;
-                }
+                } else {
+                  int prev = validRows.at(0);
+                  int curr;
 
-                for (int m = 0; m < matches.size(); ++m) {
-                  if (matches.at(m) == true) {
-                    if ((validRows.at(0) >> m) & 1) {
-                      setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                    FLAGGED);
-                      nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
-                                      coordsMain.at(m).y});
-                    } else {
-                      setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                    INQ);
-                      nextMoves.push({Action_type::UNCOVER, coordsMain.at(m).x,
-                                      coordsMain.at(m).y});
+                  for (int k = 1; k < validRows.size(); ++k) {
+                    curr = validRows.at(k);
+                    int result = !(curr ^ prev);
+                    for (int l = 0; l < numCoveredMain; ++l) {
+                      if (!(result & 1)) {
+                        matches.at(l) = false;
+                      }
+                      result >>= 1;
+                    }
+                    prev = curr;
+                  }
+
+                  for (int m = 0; m < matches.size(); ++m) {
+                    if (matches.at(m) == true) {
+                      if ((validRows.at(0) >> m) & 1) {
+                        setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+                                      FLAGGED);
+                        nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
+                                        coordsMain.at(m).y});
+                      } else {
+                        setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+                                      INQ);
+                        nextMoves.push({Action_type::UNCOVER,
+                                        coordsMain.at(m).x,
+                                        coordsMain.at(m).y});
+                      }
                     }
                   }
                 }
               }
+            } catch (const std::exception &exc) {
+              cout << "The error is happening here" << endl;
             }
           }
         }
       }
+      cout << "Finished checking all of the neighbors" << endl;
     }
   }
 

@@ -36,20 +36,17 @@ struct Coordinate {
   int x;
   int y;
 
-  bool operator()(const Coordinate &lhs, const Coordinate &rhs) const {
-    return (lhs.x == rhs.x && lhs.y < rhs.y) ||
-           (lhs.y == rhs.y && lhs.x < rhs.x) ||
-           (lhs.x < rhs.x && lhs.y < rhs.y);
+  bool operator<(const Coordinate &rhs) const { return x < rhs.x || y < rhs.y; }
+  bool operator==(const Coordinate &rhs) const {
+    return this->x == rhs.x && this->y == rhs.y;
   }
-
-  bool operator==(const Coordinate &rhs) { return x == rhs.x && y == rhs.y; }
 };
 
 class MyAI : public Agent {
 private:
   enum TileStatus { COVERED, UNCOVERED, FLAGGED, INQ };
   queue<Action> nextMoves;
-  set<Coordinate, Coordinate> comeBackLaterSet;
+  set<Coordinate> comeBackLaterSet;
   vector<vector<TileStatus>> boardStatus;
   vector<vector<int>> boardValues;
   vector<vector<int>> possiTable;
