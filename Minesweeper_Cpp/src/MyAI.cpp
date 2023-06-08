@@ -68,8 +68,9 @@ Agent::Action MyAI::getAction(int number) {
 
     // Revealed tile doesnt give enough info
     if (!allClear) {
-      cout << "Adding to the come back later set: (" << x + 1 << ", " << y + 1
-           << ")" << endl;
+      // cout << "Adding to the come back later set: (" << x + 1 << ", " << y +
+      // 1
+      //      << ")" << endl;
       comeBackLaterSet.insert({x, y});
     } else {
       // Now that we have a tile that satisifed an easy rule, check neighbors to
@@ -107,29 +108,29 @@ Agent::Action MyAI::getAction(int number) {
         4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
         4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
     for (auto comeBackTile : this->comeBackLaterSet) {
-      cout << "Something is in the comeback tile" << endl;
+      // cout << "Something is in the comeback tile" << endl;
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
 
-      cout << "It is (" << currX + 1 << "," << currY + 1 << ")" << endl;
+      // cout << "It is (" << currX + 1 << "," << currY + 1 << ")" << endl;
 
       // Get info of center tile
       int numCoveredMain, numFlagsMain;
       vector<Coordinate> coordsMain;
       neighbors(currX, currY, coordsMain, numCoveredMain, numFlagsMain);
 
-      cout << "Num covered: " << numCoveredMain << endl;
+      // cout << "Num covered: " << numCoveredMain << endl;
 
       // Get effective value
       int effectiveValMain = getTileValue(currX, currY) - numFlagsMain;
-      cout << "effective val: " << effectiveValMain << endl;
-      cout << "num flags: " << numFlagsMain << endl;
-      cout << "tile value: " << getTileValue(currX, currY) << endl;
+      // cout << "effective val: " << effectiveValMain << endl;
+      // cout << "num flags: " << numFlagsMain << endl;
+      // cout << "tile value: " << getTileValue(currX, currY) << endl;
 
       // Get truth table size
       int ttSize = 1 << effectiveValMain;
 
-      cout << "\n\n\n\nTTSIZE: " << ttSize << "\n\n\n\n";
+      // cout << "\n\n\n\nTTSIZE: " << ttSize << "\n\n\n\n";
 
       // Find each surrounding tile that is uncovered
       for (int i = -1; i <= 1; ++i) {
@@ -138,7 +139,7 @@ Agent::Action MyAI::getAction(int number) {
           int neighY = y + j;
 
           if (i == 1 && j == 1) {
-            cout << "LAST ONE!!!!" << endl;
+            // cout << "LAST ONE!!!!" << endl;
           }
 
           // bounds check
@@ -148,8 +149,8 @@ Agent::Action MyAI::getAction(int number) {
 
           // We want to perform intermediate logic on curr node and neighbor
           if (getTileStatus(neighX, neighY) == UNCOVERED) {
-            cout << "We have an uncovered neighbor (" << neighX + 1 << ", "
-                 << neighY + 1 << ")" << endl;
+            // cout << "We have an uncovered neighbor (" << neighX + 1 << ", "
+            //      << neighY + 1 << ")" << endl;
             // Get details of neighbor tile
             int numCoveredNeigh, numFlagsNeigh;
             vector<Coordinate> coordsNeigh;
@@ -176,7 +177,7 @@ Agent::Action MyAI::getAction(int number) {
               shareCase = 3;
             }
 
-            cout << "Case is set to: " << shareCase << endl;
+            // cout << "Case is set to: " << shareCase << endl;
 
             // Iterate through each value in truth table to determine validity
             vector<int> validRows;
@@ -196,7 +197,7 @@ Agent::Action MyAI::getAction(int number) {
               if (numBombs != effectiveValMain) {
                 continue;
               }
-              cout << "Did i make it here?" << endl;
+              // cout << "Did i make it here?" << endl;
 
               // 2:
               // Need to check if neigh bomb count
@@ -212,7 +213,7 @@ Agent::Action MyAI::getAction(int number) {
                     try {
                       bombLoc = coordsMain.at(loc);
                     } catch (const std::exception &exc) {
-                      cout << "The error is happening here2" << endl;
+                      // cout << "The error is happening here2" << endl;
                     }
                     // Check if this bombLoc is also in neighbor
                     for (Coordinate c : coordsNeigh) {
@@ -244,16 +245,38 @@ Agent::Action MyAI::getAction(int number) {
             try {
               vector<bool> matches(numCoveredMain, true);
               if (!validRows.empty()) {
-                cout << "We had some extra stuff with intermediate logic"
-                     << endl;
+                // cout << "We had some extra stuff with intermediate logic"
+                // << endl;
                 if (validRows.size() == 1) {
                   int result = validRows.at(0);
-                  for (int l = 0; l < numCoveredMain; ++l) {
+                  for (int l = 0; l < numCoveredMain - numFlagsMain; ++l) {
                     if (result & 1) {
-                      setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
-                                    FLAGGED);
-                      nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
-                                      coordsMain.at(l).y});
+                      // Verify that we can actually put a flag here
+                      bool works = true;
+                      for (int a = -1; a <= 1; ++a) {
+                        for (int b = -1; b <= 1; ++b) {
+                          int currXval = coordsMain.at(l).x + a;
+                          int currYval = coordsMain.at(l).y + b;
+
+                          if ((a == 0 && b == 0) ||
+                              !inBounds(currXval, currYval)) {
+                            continue;
+                          }
+                          int cov;
+                          int flag;
+                          neighbors(currXval, currYval, cov, flag);
+                          if (flag + 1 > getTileValue(currXval, currYval)) {
+                            works = false;
+                            break;
+                          }
+                        }
+                      }
+                      if (works) {
+                        setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+                                      FLAGGED);
+                        nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
+                                        coordsMain.at(l).y});
+                      }
                     } else {
                       setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
                                     INQ);
@@ -269,7 +292,7 @@ Agent::Action MyAI::getAction(int number) {
                   for (int k = 1; k < validRows.size(); ++k) {
                     curr = validRows.at(k);
                     int result = !(curr ^ prev);
-                    for (int l = 0; l < numCoveredMain; ++l) {
+                    for (int l = 0; l < numCoveredMain - numFlagsMain; ++l) {
                       if (!(result & 1)) {
                         matches.at(l) = false;
                       }
@@ -281,10 +304,32 @@ Agent::Action MyAI::getAction(int number) {
                   for (int m = 0; m < matches.size(); ++m) {
                     if (matches.at(m) == true) {
                       if ((validRows.at(0) >> m) & 1) {
-                        setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                      FLAGGED);
-                        nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
-                                        coordsMain.at(m).y});
+                        // Verify that we can actually put a flag here
+                        bool works = true;
+                        for (int a = -1; a <= 1; ++a) {
+                          for (int b = -1; b <= 1; ++b) {
+                            int currXval = coordsMain.at(m).x + a;
+                            int currYval = coordsMain.at(m).y + b;
+
+                            if ((a == 0 && b == 0) ||
+                                !inBounds(currXval, currYval)) {
+                              continue;
+                            }
+                            int cov;
+                            int flag;
+                            neighbors(currXval, currYval, cov, flag);
+                            if (flag + 1 > getTileValue(currXval, currYval)) {
+                              works = false;
+                              break;
+                            }
+                          }
+                        }
+                        if (works) {
+                          setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+                                        FLAGGED);
+                          nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
+                                          coordsMain.at(m).y});
+                        }
                       } else {
                         setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
                                       INQ);
@@ -297,12 +342,12 @@ Agent::Action MyAI::getAction(int number) {
                 }
               }
             } catch (const std::exception &exc) {
-              cout << "The error is happening here" << endl;
+              cout << exc.what() << endl;
             }
           }
         }
       }
-      cout << "Finished checking all of the neighbors" << endl;
+      // cout << "Finished checking all of the neighbors" << endl;
     }
   }
 
