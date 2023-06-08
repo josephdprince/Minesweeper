@@ -299,6 +299,9 @@ bool MyAI::checkIsPossible(int x, int y, const Coordinate original,
   }
 }
 
+/*
+
+*/
 void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                          vector<Coordinate> &comeBackTails,
                          vector<Coordinate> &otherTiles) {
@@ -371,22 +374,6 @@ bool MyAI::isInVec(Coordinate target, vector<Coordinate> &targetVec) {
   return ans;
 }
 
-void MyAI::printSet(set<Coordinate> &target) {
-  cout << "Printing a Coordinate Set: ";
-  for (Coordinate i : target) {
-    cout << "(" << i.x + 1 << ", " << i.y + 1 << "), ";
-  }
-  cout << endl;
-}
-
-void MyAI::printVec(vector<Coordinate> &target) {
-  cout << "Printing a Coordinate Vector: ";
-  for (Coordinate i : target) {
-    cout << "(" << i.x + 1 << ", " << i.y + 1 << "), ";
-  }
-  cout << endl;
-}
-
 void MyAI::checkComeBack() {
   // checks the previous unclear tiles
   vector<Coordinate> toBeRemoveTiles;
@@ -408,7 +395,8 @@ void MyAI::checkComeBack() {
 
 /*
   Reveal the rest of the covered squares if flagged tiles = total # of bombs
-  (meaning we found all bombs)
+  (meaning we found all bombs). It is the end of the game if we reveal all the
+  covered square
 */
 void MyAI::revealAllSquares() {
   // Just for safety
@@ -429,7 +417,11 @@ void MyAI::revealAllSquares() {
 }
 
 /*
-  Add action to queue that we know for sure to do around (x, y)
+  Add action to queue that we know for sure to do around (x, y) if:
+    1. Value at (x, y) = 0 (meaning no bomb) --> reaveal all neighboring tiles
+    2. Value at (x, y) = # of Covered tiles  --> flag every covered tiles
+    3. Value at (x, y) = # of Flagged neighbors --> Uncover all the surrounding
+      tiles
 */
 bool MyAI::easyRules(int x, int y) {
   bool allClear = false;
@@ -460,24 +452,27 @@ bool MyAI::easyRules(int x, int y) {
       }
       TileStatus currStat = getTileStatus(currX, currY);
 
-      // There are no bombs so every surrounding tile must be safe
+      // 1. There are no bombs so every surrounding tile must be safe
       if (centerVal == 0) {
         if (currStat == COVERED) {
           nextMoves.push({Action_type::UNCOVER, currX, currY});
           setTileStatus(currX, currY, INQ);
         }
       }
-      // Every surrounding tile must be a bomb so flag everything covered
+      // 2. Every surrounding tile must be a bomb so flag everything covered
       else if (centerVal == numCoveredNeighbor) {
         if (currStat == COVERED) {
           setTileStatus(currX, currY, FLAGGED);
-          // NOTE: This line is just for visualization purposes for
-          // debugging Comment this line if not debugging
-          nextMoves.push({Action_type::FLAG, currX, currY});
+          // NOTE: This is just for visualization purposes for debugging.
+          // It puts the Flag action into the action queue, so that when running
+          // we can see what is flagged
+          if (global_debug) {
+            nextMoves.push({Action_type::FLAG, currX, currY});
+          }
           ++discovered_bomb;
         }
       }
-      // Everything not flagged must be safe
+      // 3. Everything not flagged must be safe
       else if (centerVal == numFlaggedNeighbor) {
         if (currStat == COVERED) {
           nextMoves.push({Action_type::UNCOVER, currX, currY});
@@ -490,7 +485,7 @@ bool MyAI::easyRules(int x, int y) {
 }
 
 /*
-  Update the tile at (x, y) with value = number
+  Update the tile at (x, y) with value = number and mark as UNCOVERED
 */
 void MyAI::updateVecs(int number, int x, int y) {
   if (number == -1)
@@ -603,6 +598,28 @@ void MyAI::printCurrMaps() {
     }
     cout << endl;
   }
+}
+
+/*
+  Print out the given set<Coordinate>
+*/
+void MyAI::printSet(set<Coordinate> &target) {
+  cout << "Printing a Coordinate Set: ";
+  for (Coordinate i : target) {
+    cout << "(" << i.x + 1 << ", " << i.y + 1 << "), ";
+  }
+  cout << endl;
+}
+
+/*
+  Print out the given vector<Coordinate>
+*/
+void MyAI::printVec(vector<Coordinate> &target) {
+  cout << "Printing a Coordinate Vector: ";
+  for (Coordinate i : target) {
+    cout << "(" << i.x + 1 << ", " << i.y + 1 << "), ";
+  }
+  cout << endl;
 }
 
 //==================================================
