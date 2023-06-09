@@ -52,6 +52,7 @@ private:
   vector<vector<int>> boardValues;
   vector<vector<int>> possiTable;
   int discovered_bomb;
+  bool global_debug = true;
 
   // Stores the number of 1's (bombs) of the number of the index
   // i.e. 0 maps to 0 bombs, 7 maps to 3 bombs...

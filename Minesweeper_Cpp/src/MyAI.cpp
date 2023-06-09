@@ -110,19 +110,25 @@ Agent::Action MyAI::getAction(int number) {
         continue;
       }
       // Get truth table size
-      int ttSize = 1 << (numCoveredMain - numFlagsMain);
+      int ttSize = 1 << coordsMain.size();
       vector<int> validRows;
 
-      cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
-      printVecs(""); // NOTE REMEMEBER TO REMOVE THIS
-      cout << comeBackTile << endl;
-      cout << "coordsMain size = " << coordsMain.size() << endl;
-      cout << "Num covered: " << numCoveredMain << endl;
-      cout << "effective val: " << effectiveValMain << endl;
-      cout << "num flags: " << numFlagsMain << endl;
-      cout << "tile value: " << getTileValue(currX, currY) << endl;
-      cout << "TruthTable Size = " << ttSize << endl;
-      cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+      if (global_debug == true) {
+        cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+        printVecs(""); // NOTE REMEMEBER TO REMOVE THIS
+        cout << "checking comeback tiles: " << comeBackTile << endl;
+        cout << "coordsMain size = " << coordsMain.size() << ": ";
+        for (Coordinate i : coordsMain) {
+          cout << i << " ";
+        }
+        cout << endl;
+        cout << "Num covered: " << numCoveredMain << endl;
+        cout << "effective val: " << effectiveValMain << endl;
+        cout << "num flags: " << numFlagsMain << endl;
+        cout << "tile value: " << getTileValue(currX, currY) << endl;
+        cout << "TruthTable Size = " << ttSize << endl;
+        cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+      }
       // Find each surrounding tile that is uncovered and insert it into
       // into validRows
       // Tile @ (x, y) is reference as curr. We go through the tiles around
@@ -165,61 +171,63 @@ Agent::Action MyAI::getAction(int number) {
             // one too
             shareCase = 3;
           }
-          try {
-            // Iterate through each value in truth table to determine validity
-            for (int row = 0; row < ttSize; ++row) {
-              // Two things to consider for checking validity:
-              // 1. Is total number of bombs correct
-              // 2. Is number of bombs for both uncovered tile valid
+          // try {
+          // Iterate through each value in truth table to determine validity
+          for (int row = 0; row < ttSize; ++row) {
+            // Two things to consider for checking validity:
+            // 1. Is total number of bombs correct
+            // 2. Is number of bombs for both uncovered tile valid
 
-              // 1: grabbing from  the pre generated lookup table to check the
-              // number of bombs should exsist for this current row in the truth
-              // table
-              int numBombs;
-              numBombs = lookupTable.at(row);
-              if (numBombs != effectiveValMain) {
-                continue;
-              }
-              // 2:
-              // Need to check if neigh bomb count
-              if (shareCase != 2) {
-                int neighBombCount = 0;
+            // 1: grabbing from  the pre generated lookup table to check the
+            // number of bombs should exsist for this current row in the truth
+            // table
+            int numBombs;
+            numBombs = lookupTable.at(row);
+            if (numBombs != effectiveValMain) {
+              continue;
+            }
+            // 2:
+            // Need to check if neigh bomb count
+            if (shareCase != 2) {
+              int neighBombCount = 0;
 
-                int spot = row;
-                int loc = 0;
-                while (spot) {
-                  // Check if first spot has a bomb
-                  if (spot & 1) {
-                    Coordinate bombLoc;
-                    try {
-                      bombLoc = coordsMain.at(loc);
-                    } catch (const std::exception &exc) {
-                      cout << "The error is happening here2" << endl;
-                      cout << "\t" << exc.what() << endl;
-                    }
-                    // Check if this bombLoc is also in neighbor
-                    for (Coordinate c : coordsNeigh) {
-                      if (c == bombLoc) {
-                        ++neighBombCount;
-                        break;
-                      }
+              int spot = row;
+              int loc = 0;
+              while (spot) {
+                // Check if first spot has a bomb
+                if (spot & 1) {
+                  Coordinate bombLoc;
+                  // try {
+                  bombLoc = coordsMain.at(loc);
+                  // } catch (const std::exception &exc) {
+                  //   cout << "The error is happening here2" << endl;
+                  //   cout << "\t" << exc.what() << endl;
+                  // }
+                  // Check if this bombLoc is also in neighbor
+                  for (Coordinate c : coordsNeigh) {
+                    if (c == bombLoc) {
+                      ++neighBombCount;
+                      break;
                     }
                   }
-
-                  ++loc;
-                  spot >>= 1;
                 }
 
-                if ((shareCase == 1 && neighBombCount != effectiveValNeigh) ||
-                    (shareCase == 3 && neighBombCount > effectiveValNeigh)) {
-                  continue;
-                }
+                ++loc;
+                spot >>= 1;
               }
+
+              if ((shareCase == 1 && neighBombCount != effectiveValNeigh) ||
+                  (shareCase == 3 && neighBombCount > effectiveValNeigh)) {
+                continue;
+              }
+            }
+            if (!isInVec(row, validRows)) {
               validRows.push_back(row);
             }
-          } catch (const std::exception &exc) {
-            cout << "Failed to grab valid rows " << exc.what() << endl;
           }
+          // } catch (const std::exception &exc) {
+          //   cout << "Failed to grab valid rows " << exc.what() << endl;
+          // }
         }
       }
 
@@ -228,40 +236,56 @@ Agent::Action MyAI::getAction(int number) {
       // similarity across each row must be true. For example if position 1 of
       // the coveredNearCurr is a bomb across all rows then it is true that it
       // will be a bomb
-      try {
-        vector<int> sumOneTable(numCoveredMain);
-        vector<int> sumZeroTable(numCoveredMain);
-        cout << "numCoveredMain = " << numCoveredMain << endl;
+      // try {
+      vector<int> sumTable(coordsMain.size());
+      if (global_debug) {
+        cout << "coordsMain.size() = " << coordsMain.size() << endl;
         cout << "validRows.size() = " << validRows.size() << endl;
-        for (int row : validRows) {
-          int copy = row;
-          // grab the bit representation of the current entry in validRows
-          for (int i = 0; i < sumOneTable.size(); i++) {
-            sumOneTable[i] += copy & 1;
-            if (!(copy & 1)) { // curr bit is 0
-              sumZeroTable[i] += 1;
-            }
-            copy >>= 1;
-          }
+      }
+      for (int row : validRows) {
+        int copy = row;
+        // grab the bit representation of the current entry in validRows
+        for (int i = 0; i < sumTable.size(); i++) {
+          sumTable[i] += copy & 1;
+          copy >>= 1;
         }
-        for (int i = 0; i < sumOneTable.size(); i++) {
-          if (sumOneTable[i] == validRows.size()) {
-            Coordinate validTile = coordsMain[i];
-            nextMoves.push({Action_type::FLAG, validTile.x, validTile.y});
-            setTileStatus(validTile.x, validTile.y, INQ);
+      }
+      if (global_debug) {
+        cout << "sumtable = ";
+        for (int i : sumTable) {
+          cout << i << " ";
+        }
+        cout << endl;
+        cout << "validRows = ";
+        for (int i : validRows) {
+          cout << i << " ";
+        }
+        cout << endl;
+      }
+      bool added = false;
+      for (int i = 0; i < sumTable.size(); i++) {
+        added = added || sumTable[i] == validRows.size() || sumTable[i] == 0;
+        if (sumTable[i] == validRows.size()) {
+          Coordinate validTile = coordsMain[i];
+          nextMoves.push({Action_type::FLAG, validTile.x, validTile.y});
+          setTileStatus(validTile.x, validTile.y, INQ);
+          if (global_debug)
             cout << "\t FLAG FROM INTER :" << validTile << endl;
-          } else if (sumZeroTable[i] == validRows.size()) {
-            Coordinate validTile = coordsMain[i];
-            nextMoves.push({Action_type::UNCOVER, validTile.x, validTile.y});
-            setTileStatus(validTile.x, validTile.y, INQ);
+        } else if (sumTable[i] == 0) {
+          Coordinate validTile = coordsMain[i];
+          nextMoves.push({Action_type::UNCOVER, validTile.x, validTile.y});
+          setTileStatus(validTile.x, validTile.y, INQ);
+          if (global_debug)
             cout << "\t UNCOVERING FROM INTER :" << validTile << endl;
-          }
         }
+      }
+      if (global_debug && added) {
         cout << "\tPrint Vecs" << endl;
         printVecs("\t"); // NOTE REMEMEBER TO REMOVE THIS
-      } catch (...) {
-        cout << "UH OH STICKY" << endl;
       }
+      // } catch (...) {
+      //   cout << "UH OH STICKY" << endl;
+      // }
     }
   }
 

@@ -201,9 +201,9 @@ int main(int argc, char *argv[]) {
       cout << "Running world: " << worldFile << endl;
 
     World world(debug, aiType, worldFile);
-    cout << "World Check pt" << endl;
+    // cout << "World Check pt" << endl;
     int score = world.run();
-    cout << "World Check pt2" << endl;
+    // cout << "World Check pt2" << endl;
     if (outputFile == "") {
       if (score)
         cout << "WORLD COMPLETE" << endl;
