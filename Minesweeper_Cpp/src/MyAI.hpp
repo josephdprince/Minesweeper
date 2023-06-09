@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cmath>
+#include <iomanip>
 #include <iostream> // FIXME: temporary use
 #include <map>
 #include <queue>
@@ -52,6 +53,21 @@ private:
   vector<vector<int>> possiTable;
   int discovered_bomb;
 
+  // Stores the number of 1's (bombs) of the number of the index
+  // i.e. 0 maps to 0 bombs, 7 maps to 3 bombs...
+  vector<int> lookupTable{
+      0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4,
+      2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+      2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4,
+      2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+      2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,
+      4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+      2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5,
+      3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+      2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,
+      4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+      4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
+
 public:
   MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
        int _agentY);
@@ -67,12 +83,15 @@ private:
   int countNearCovered(int x, int y);
   int countNearFlag(int x, int y);
   bool easyRules(int x, int y);
-  void printVecs();
+  void printVecs(string prefix);
   void revealAllSquares();
   void checkComeBack();
   void grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                      vector<Coordinate> &comeBackTails,
                      vector<Coordinate> &otherTiles);
+
+  template <class T> bool isInVec(T target, vector<T> &targetVec);
+  void printVec(vector<Coordinate> &target);
 
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);

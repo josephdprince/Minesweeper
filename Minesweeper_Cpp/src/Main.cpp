@@ -143,6 +143,8 @@ int main(int argc, char *argv[]) {
     int easy = 0;
     int medium = 0;
     int expert = 0;
+    ofstream fout;
+    fout.open("./bin/failed.txt");
 
     while ((ent = readdir(dir)) != NULL) {
       if (ent->d_name[0] == '.')
@@ -162,6 +164,8 @@ int main(int argc, char *argv[]) {
           ++medium;
         else if (score == 1)
           ++easy;
+        else
+          fout << "Failed " << individualWorldFile << endl;
       } catch (const std::exception &exc) {
         cout << exc.what() << endl;
         sumOfScores = 0;
@@ -170,6 +174,7 @@ int main(int argc, char *argv[]) {
 
       sumOfScores += score;
     }
+    fout.close();
 
     closedir(dir);
 
@@ -196,7 +201,9 @@ int main(int argc, char *argv[]) {
       cout << "Running world: " << worldFile << endl;
 
     World world(debug, aiType, worldFile);
+    cout << "World Check pt" << endl;
     int score = world.run();
+    cout << "World Check pt2" << endl;
     if (outputFile == "") {
       if (score)
         cout << "WORLD COMPLETE" << endl;

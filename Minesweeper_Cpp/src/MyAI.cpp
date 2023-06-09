@@ -22,6 +22,10 @@
 vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
                                 const vector<Coordinate> neighCoords);
 
+ostream &operator<<(ostream &ost, const Coordinate target) {
+  return ost << "(" << target.x + 1 << ", " << target.y + 1 << ")";
+}
+
 MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
            int _agentY)
     : Agent() {
@@ -68,9 +72,6 @@ Agent::Action MyAI::getAction(int number) {
 
     // Revealed tile doesnt give enough info
     if (!allClear) {
-      // cout << "Adding to the come back later set: (" << x + 1 << ", " << y +
-      // 1
-      //      << ")" << endl;
       comeBackLaterSet.insert({x, y});
     } else {
       // Now that we have a tile that satisifed an easy rule, check neighbors to
@@ -90,115 +91,95 @@ Agent::Action MyAI::getAction(int number) {
     checkComeBack();
   }
 
+  // If the next MOves queue is still empty after easy rules, we will run the
+  // intermediate logic on the come back set
   if (nextMoves.empty()) {
     // Intermediate Logic on all Come Back tiles
 
-    // Stores the number of 1's (bombs) of the number of the index
-    // i.e. 0 maps to 0 bombs, 7 maps to 3 bombs...
-    vector<int> lookupTable{
-        0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4,
-        2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4,
-        2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,
-        4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5,
-        3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,
-        4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-        4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
-    for (auto comeBackTile : this->comeBackLaterSet) {
-      // cout << "Something is in the comeback tile" << endl;
+    for (Coordinate comeBackTile : this->comeBackLaterSet) {
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
 
-      // cout << "It is (" << currX + 1 << "," << currY + 1 << ")" << endl;
-
-      // Get info of center tile
+      // Get info of curr come back tile
       int numCoveredMain, numFlagsMain;
       vector<Coordinate> coordsMain;
       neighbors(currX, currY, coordsMain, numCoveredMain, numFlagsMain);
-
-      // cout << "Num covered: " << numCoveredMain << endl;
-
       // Get effective value
       int effectiveValMain = getTileValue(currX, currY) - numFlagsMain;
-      // cout << "effective val: " << effectiveValMain << endl;
-      // cout << "num flags: " << numFlagsMain << endl;
-      // cout << "tile value: " << getTileValue(currX, currY) << endl;
-
+      if (coordsMain.size() == 0) {
+        continue;
+      }
       // Get truth table size
-      int ttSize = 1 << effectiveValMain;
+      int ttSize = 1 << (numCoveredMain - numFlagsMain);
+      vector<int> validRows;
 
-      // cout << "\n\n\n\nTTSIZE: " << ttSize << "\n\n\n\n";
+      cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+      printVecs(""); // NOTE REMEMEBER TO REMOVE THIS
+      cout << comeBackTile << endl;
+      cout << "coordsMain size = " << coordsMain.size() << endl;
+      cout << "Num covered: " << numCoveredMain << endl;
+      cout << "effective val: " << effectiveValMain << endl;
+      cout << "num flags: " << numFlagsMain << endl;
+      cout << "tile value: " << getTileValue(currX, currY) << endl;
+      cout << "TruthTable Size = " << ttSize << endl;
+      cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+      // Find each surrounding tile that is uncovered and insert it into
+      // into validRows
+      // Tile @ (x, y) is reference as curr. We go through the tiles around
+      // curr.
 
-      // Find each surrounding tile that is uncovered
       for (int i = -1; i <= 1; ++i) {
         for (int j = -1; j <= 1; ++j) {
           int neighX = x + i;
           int neighY = y + j;
 
-          if (i == 1 && j == 1) {
-            // cout << "LAST ONE!!!!" << endl;
-          }
-
-          // bounds check
-          if ((i == 0 && j == 0) || !inBounds(neighX, neighY)) {
+          // bounds check and continue if neighbor tile is covered
+          if ((i == 0 && j == 0) || !inBounds(neighX, neighY) ||
+              getTileStatus(neighX, neighY) != UNCOVERED) {
             continue;
           }
 
           // We want to perform intermediate logic on curr node and neighbor
-          if (getTileStatus(neighX, neighY) == UNCOVERED) {
-            // cout << "We have an uncovered neighbor (" << neighX + 1 << ", "
-            //      << neighY + 1 << ")" << endl;
-            // Get details of neighbor tile
-            int numCoveredNeigh, numFlagsNeigh;
-            vector<Coordinate> coordsNeigh;
-            neighbors(neighX, neighY, coordsNeigh, numCoveredNeigh,
-                      numFlagsNeigh);
+          // Get details of neighbor tile
+          int numCoveredNeigh, numFlagsNeigh;
+          vector<Coordinate> coordsNeigh;
+          neighbors(neighX, neighY, coordsNeigh, numCoveredNeigh,
+                    numFlagsNeigh);
+          // Get effective value of Neighbor tile
+          int effectiveValNeigh = getTileValue(neighX, neighY) - numFlagsNeigh;
 
-            // Get effective value
-            int effectiveValNeigh =
-                getTileValue(neighX, neighY) - numFlagsNeigh;
-
-            // Find bomb similarities between curr and neigh
-            vector<Coordinate> sims = similarities(coordsMain, coordsNeigh);
-            int shareCase;
-            // Case 1
-            if (sims.size() == coordsNeigh.size()) {
-              shareCase = 1;
-            }
-            // Case 2
-            else if (sims.size() == 0) {
-              shareCase = 2;
-            }
-            // Case 3
-            else {
-              shareCase = 3;
-            }
-
-            // cout << "Case is set to: " << shareCase << endl;
-
+          // Find shared Covered tiles between curr and neigh. Base on the #
+          // of covered tiles shares, different logics are performed
+          vector<Coordinate> sims = similarities(coordsMain, coordsNeigh);
+          int shareCase;
+          if (sims.size() == coordsNeigh.size()) {
+            // Case 1 all COVERED tiles of the neighbor tiles is a subset of
+            // the curr tile
+            shareCase = 1;
+          } else if (sims.size() == 0) {
+            // Case 2 No overlaps of covered tiles between neighbor tiles and
+            // curr tile
+            shareCase = 2;
+          } else {
+            // Case 3 some of the covered near neighbor are not in the curr
+            // one too
+            shareCase = 3;
+          }
+          try {
             // Iterate through each value in truth table to determine validity
-            vector<int> validRows;
             for (int row = 0; row < ttSize; ++row) {
-              // Two things to consider:
+              // Two things to consider for checking validity:
               // 1. Is total number of bombs correct
               // 2. Is number of bombs for both uncovered tile valid
 
-              // 1:
+              // 1: grabbing from  the pre generated lookup table to check the
+              // number of bombs should exsist for this current row in the truth
+              // table
               int numBombs;
-              // try {
-              // cout << "row: " << row << endl;
               numBombs = lookupTable.at(row);
-              // } catch (const std::exception &exc) {
-              //   cout << "The error is happening here1" << endl;
-              // }
               if (numBombs != effectiveValMain) {
                 continue;
               }
-              // cout << "Did i make it here?" << endl;
-
               // 2:
               // Need to check if neigh bomb count
               if (shareCase != 2) {
@@ -213,7 +194,8 @@ Agent::Action MyAI::getAction(int number) {
                     try {
                       bombLoc = coordsMain.at(loc);
                     } catch (const std::exception &exc) {
-                      // cout << "The error is happening here2" << endl;
+                      cout << "The error is happening here2" << endl;
+                      cout << "\t" << exc.what() << endl;
                     }
                     // Check if this bombLoc is also in neighbor
                     for (Coordinate c : coordsNeigh) {
@@ -233,121 +215,53 @@ Agent::Action MyAI::getAction(int number) {
                   continue;
                 }
               }
-
               validRows.push_back(row);
             }
-
-            // for each valid row, check to see if there are any similarities.
-            // Any similarity across each row must be true.
-
-            // Base case 1: validRows is empty (do nothing)
-            // Base case 2: validRows has size 1
-            try {
-              vector<bool> matches(numCoveredMain, true);
-              if (!validRows.empty()) {
-                // cout << "We had some extra stuff with intermediate logic"
-                // << endl;
-                if (validRows.size() == 1) {
-                  int result = validRows.at(0);
-                  for (int l = 0; l < numCoveredMain - numFlagsMain; ++l) {
-                    if (result & 1) {
-                      // Verify that we can actually put a flag here
-                      bool works = true;
-                      for (int a = -1; a <= 1; ++a) {
-                        for (int b = -1; b <= 1; ++b) {
-                          int currXval = coordsMain.at(l).x + a;
-                          int currYval = coordsMain.at(l).y + b;
-
-                          if ((a == 0 && b == 0) ||
-                              !inBounds(currXval, currYval)) {
-                            continue;
-                          }
-                          int cov;
-                          int flag;
-                          neighbors(currXval, currYval, cov, flag);
-                          if (flag + 1 > getTileValue(currXval, currYval)) {
-                            works = false;
-                            break;
-                          }
-                        }
-                      }
-                      if (works) {
-                        setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
-                                      FLAGGED);
-                        nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
-                                        coordsMain.at(l).y});
-                      }
-                    } else {
-                      setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
-                                    INQ);
-                      nextMoves.push({Action_type::UNCOVER, coordsMain.at(l).x,
-                                      coordsMain.at(l).y});
-                    }
-                    result >>= 1;
-                  }
-                } else {
-                  int prev = validRows.at(0);
-                  int curr;
-
-                  for (int k = 1; k < validRows.size(); ++k) {
-                    curr = validRows.at(k);
-                    int result = !(curr ^ prev);
-                    for (int l = 0; l < numCoveredMain - numFlagsMain; ++l) {
-                      if (!(result & 1)) {
-                        matches.at(l) = false;
-                      }
-                      result >>= 1;
-                    }
-                    prev = curr;
-                  }
-
-                  for (int m = 0; m < matches.size(); ++m) {
-                    if (matches.at(m) == true) {
-                      if ((validRows.at(0) >> m) & 1) {
-                        // Verify that we can actually put a flag here
-                        bool works = true;
-                        for (int a = -1; a <= 1; ++a) {
-                          for (int b = -1; b <= 1; ++b) {
-                            int currXval = coordsMain.at(m).x + a;
-                            int currYval = coordsMain.at(m).y + b;
-
-                            if ((a == 0 && b == 0) ||
-                                !inBounds(currXval, currYval)) {
-                              continue;
-                            }
-                            int cov;
-                            int flag;
-                            neighbors(currXval, currYval, cov, flag);
-                            if (flag + 1 > getTileValue(currXval, currYval)) {
-                              works = false;
-                              break;
-                            }
-                          }
-                        }
-                        if (works) {
-                          setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                        FLAGGED);
-                          nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
-                                          coordsMain.at(m).y});
-                        }
-                      } else {
-                        setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                      INQ);
-                        nextMoves.push({Action_type::UNCOVER,
-                                        coordsMain.at(m).x,
-                                        coordsMain.at(m).y});
-                      }
-                    }
-                  }
-                }
-              }
-            } catch (const std::exception &exc) {
-              cout << exc.what() << endl;
-            }
+          } catch (const std::exception &exc) {
+            cout << "Failed to grab valid rows " << exc.what() << endl;
           }
         }
       }
-      // cout << "Finished checking all of the neighbors" << endl;
+
+      // Now the validRows is filled with valid possible entries. For each entry
+      // , check to see if there are any similarities to other entries. Any
+      // similarity across each row must be true. For example if position 1 of
+      // the coveredNearCurr is a bomb across all rows then it is true that it
+      // will be a bomb
+      try {
+        vector<int> sumOneTable(numCoveredMain);
+        vector<int> sumZeroTable(numCoveredMain);
+        cout << "numCoveredMain = " << numCoveredMain << endl;
+        cout << "validRows.size() = " << validRows.size() << endl;
+        for (int row : validRows) {
+          int copy = row;
+          // grab the bit representation of the current entry in validRows
+          for (int i = 0; i < sumOneTable.size(); i++) {
+            sumOneTable[i] += copy & 1;
+            if (!(copy & 1)) { // curr bit is 0
+              sumZeroTable[i] += 1;
+            }
+            copy >>= 1;
+          }
+        }
+        for (int i = 0; i < sumOneTable.size(); i++) {
+          if (sumOneTable[i] == validRows.size()) {
+            Coordinate validTile = coordsMain[i];
+            nextMoves.push({Action_type::FLAG, validTile.x, validTile.y});
+            setTileStatus(validTile.x, validTile.y, INQ);
+            cout << "\t FLAG FROM INTER :" << validTile << endl;
+          } else if (sumZeroTable[i] == validRows.size()) {
+            Coordinate validTile = coordsMain[i];
+            nextMoves.push({Action_type::UNCOVER, validTile.x, validTile.y});
+            setTileStatus(validTile.x, validTile.y, INQ);
+            cout << "\t UNCOVERING FROM INTER :" << validTile << endl;
+          }
+        }
+        cout << "\tPrint Vecs" << endl;
+        printVecs("\t"); // NOTE REMEMEBER TO REMOVE THIS
+      } catch (...) {
+        cout << "UH OH STICKY" << endl;
+      }
     }
   }
 
@@ -391,6 +305,10 @@ void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
   }
 }
 
+/*
+  Come back to the tiles in comebacklater set and see if easy rule can be
+  applied to any of them
+*/
 void MyAI::checkComeBack() {
   // checks the previous unclear tiles
   vector<Coordinate> nowSetTiles;
@@ -428,7 +346,11 @@ void MyAI::revealAllSquares() {
 }
 
 /*
-  Add action to queue that we know for sure to do around (x, y)
+  Add action to queue that we know for sure to do around (x, y) if:
+    1. Value at (x, y) = 0 (meaning no bomb) --> reaveal all neighboring tiles
+    2. Value at (x, y) = # of Covered tiles  --> flag every covered tiles
+    3. Value at (x, y) = # of Flagged neighbors --> Uncover all the surrounding
+      tiles
 */
 bool MyAI::easyRules(int x, int y) {
   bool allClear = false;
@@ -468,8 +390,9 @@ bool MyAI::easyRules(int x, int y) {
       else if (centerVal == numCoveredNeighbor) {
         if (currStat == COVERED) {
           setTileStatus(currX, currY, FLAGGED);
-          // NOTE: This line is just for visualization purposes for
-          // debugging Comment this line if not debugging
+          // NOTE: This is just for visualization purposes for debugging.
+          // It puts the Flag action into the action queue, so that when running
+          // we can see what is flagged
           nextMoves.push({Action_type::FLAG, currX, currY});
           ++discovered_bomb;
         }
@@ -487,7 +410,7 @@ bool MyAI::easyRules(int x, int y) {
 }
 
 /*
-  Update the tile at (x, y) with value = number
+  Update the tile at (x, y) with value = number and mark as UNCOVERED
 */
 void MyAI::updateVecs(int number, int x, int y) {
   if (number == -1)
@@ -541,6 +464,10 @@ void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
   }
 }
 
+/*
+  Count the number of covered neighbors around a given coordinate (x, y).
+  Store the neighbors that are COVERED into peram coords
+*/
 void MyAI::neighbors(int x, int y, vector<Coordinate> &coords,
                      int &numCoveredNeighbors, int &numFlags) {
   numCoveredNeighbors = 0;
@@ -567,7 +494,7 @@ void MyAI::neighbors(int x, int y, vector<Coordinate> &coords,
 }
 
 /*
-  Return the number of covered tiles around (x, y) including flagged ones
+  Return the number of covered tiles around (x, y) INCLUDING flagged ones
 */
 int MyAI::countNearCovered(int x, int y) {
   int count = 0;
@@ -606,24 +533,46 @@ int MyAI::countNearFlag(int x, int y) {
 /*
   Print out the current boardStatus map to cout
 */
-void MyAI::printVecs() {
+void MyAI::printVecs(string prefix) {
   int numRows = this->rowDimension;
   int numCols = this->colDimension;
-  cout << "SIZE: " << numRows << "X" << numCols << endl;
-  for (int row = numRows - 1; row >= 0; --row) {
-    for (int col = 0; col < numCols; ++col) {
-      cout << boardStatus.at(row).at(col) << ",";
+  cout << prefix << "SIZE: " << numRows << "X" << numCols << endl;
+  for (int col = numCols - 1; col >= 0; --col) {
+    cout << prefix;
+    printf("%-4d%c", col + 1, '|');
+    for (int row = 0; row < numRows; ++row) {
+      if (getTileStatus(row, col) == COVERED) {
+        cout << ". ";
+      } else if (getTileStatus(row, col) == FLAGGED) {
+        cout << "# ";
+      } else if (getTileStatus(row, col) == INQ) {
+        cout << "Q ";
+      } else {
+        cout << getTileValue(row, col) << " ";
+      }
     }
     cout << endl;
   }
+  cout << prefix << "     ";
+  for (int c = 0; c < numRows; ++c)
+    cout << "- ";
   cout << endl;
 
-  for (int row = numRows - 1; row >= 0; --row) {
-    for (int col = 0; col < numCols; ++col) {
-      cout << boardValues.at(row).at(col) << ",";
-    }
-    cout << endl;
+  cout << prefix << "     ";
+  for (int c = 0; c < numRows; ++c)
+    cout << c + 1 << " ";
+  cout << endl;
+}
+
+/*
+  Print out the given vector<Coordinate>
+*/
+void MyAI::printVec(vector<Coordinate> &target) {
+  cout << "Printing a Coordinate Vector: ";
+  for (Coordinate i : target) {
+    cout << "(" << i.x + 1 << ", " << i.y + 1 << "), ";
   }
+  cout << endl;
 }
 
 //==================================================
@@ -658,6 +607,9 @@ void MyAI::setTilePossi(int x, int y, int newVal) {
 // Helpers
 //==================================================
 
+/*
+  Find the Coordinates that appear in both mainCoords and neighCoords
+*/
 vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
                                 const vector<Coordinate> neighCoords) {
   vector<Coordinate> similarities;
@@ -671,4 +623,15 @@ vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
     }
   }
   return similarities;
+}
+
+template <class T> bool MyAI::isInVec(T target, vector<T> &targetVec) {
+  bool ans = false;
+  for (T i : targetVec) {
+    if (i == target) {
+      ans = true;
+      break;
+    }
+  }
+  return ans;
 }
