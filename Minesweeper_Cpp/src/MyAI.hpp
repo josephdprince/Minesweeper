@@ -48,6 +48,8 @@ private:
   vector<vector<TileStatus>> boardStatus;
   vector<vector<int>> boardValues;
   vector<vector<int>> possiTable;
+  vector<vector<int>> numCountTable;
+
   int discovered_bomb;
   bool global_debug = false;
 
@@ -88,8 +90,12 @@ private:
   int getTileValue(int x, int y);
   void setTileStatus(int x, int y, TileStatus newStat);
   void setTileValue(int x, int y, int newVal);
+  double calTilePossi(int x, int y);
   int getTilePossi(int x, int y);
-  void setTilePossi(int x, int y, int newVal);
+  void addToTilePossi(int x, int y);
+
+  int getTileCount(int x, int y);
+  void addToTileCount(int x, int y);
 };
 
 #endif // MINE_SWEEPER_CPP_SHELL_MYAI_HPP

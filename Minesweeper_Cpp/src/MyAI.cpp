@@ -40,10 +40,12 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     vector<TileStatus> initialStatus(_colDimension, COVERED);
     vector<int> initialValues(_colDimension, -1);
     vector<int> initialPossi(_colDimension, 100);
+    vector<int> initialCounts(_colDimension, 0);
 
     possiTable.push_back(initialPossi);
     boardStatus.push_back(initialStatus);
     boardValues.push_back(initialValues);
+    numCountTable.push_back(initialCounts);
   }
 };
 
@@ -188,10 +190,15 @@ Agent::Action MyAI::getAction(int number) {
           cout << "\t\t\tNot Possible combination" << endl;
         }
 
+        // try {
         // set the tiles back to covered
         for (Coordinate i : changedTiles) {
           setTileStatus(i.x, i.y, COVERED);
         }
+        // } catch (exception &ex) {
+        //   std::cout << "STICKY HERE 2" << endl;
+        //   std::cout << ex.what() << endl;
+        // }
         ++count;
       }
 
@@ -201,23 +208,30 @@ Agent::Action MyAI::getAction(int number) {
       // count the bits in the valid combination. If equals to
       // validCombination.size that means that bit appeared in all the
       // combination meaning it is safe to uncover
+      // try {
       for (int i : validCombination) {
         int copy = i;
         // grab the bit representation of the current truth table row
         for (int i = 0; i < sumTable.size(); i++) {
+          Coordinate matchingTile = allCoveredTile[i];
+          addToTilePossi(matchingTile.x, matchingTile.y);
           sumTable[i] += copy & 1;
           copy >>= 1;
         }
       }
+      // } catch (exception &ex) {
+      //   std::cout << "STICKY HERE 3" << endl;
+      //   std::cout << ex.what() << endl;
+      // }
+
+      // try {
       for (int i = 0; i < sumTable.size(); i++) {
 
         if (sumTable[i] == validCombination.size()) {
           if (global_debug) {
             cout << "\t\t  INTERMEDIATE LOGIC Flag TILE: "
                     "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
-                 << endl;
-            cout << "\t\t  (" << allCoveredTile[i].x + 1 << ", "
-                 << allCoveredTile[i].y + 1 << ")" << endl;
+                 << allCoveredTile[i] << endl;
           }
           Coordinate validTile = allCoveredTile[i];
           nextMoves.push({Action_type::FLAG, validTile.x, validTile.y});
@@ -226,17 +240,47 @@ Agent::Action MyAI::getAction(int number) {
           if (global_debug) {
             cout << "\t\t  INTERMEDIATE LOGIC Uncover TILE: "
                     "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
-                 << endl;
-            cout << "\t\t  (" << allCoveredTile[i].x + 1 << ", "
-                 << allCoveredTile[i].y + 1 << ")" << endl;
+                 << allCoveredTile[i] << endl;
           }
           Coordinate validTile = allCoveredTile[i];
           nextMoves.push({Action_type::UNCOVER, validTile.x, validTile.y});
           setTileStatus(validTile.x, validTile.y, INQ);
         }
       }
+      // } catch (exception &ex) {
+      //   std::cout << "STICKY HERE 4" << endl;
+      //   std::cout << ex.what() << endl;
+      // }
     }
   }
+
+  // There is still no move even after the intermediate, so we start guessing
+  if (nextMoves.empty()) {
+    Coordinate min_coord = {-1, -1};
+    for (int y = 0; y < rowDimension; ++y) {
+      for (int x = 0; x < colDimension; ++x) {
+        if (getTileStatus(x, y) != COVERED) {
+          continue;
+        }
+        if (min_coord.x == -1) {
+          min_coord.x = x;
+          min_coord.y = y;
+        }
+        if (global_debug || true) {
+          cout << "Possible " << Coordinate({x, y}) << ": "
+               << getTilePossi(x, y) << "/" << getTileCount(x, y) << " = "
+               << getTilePossi(x, y) << endl;
+        }
+        if (getTilePossi(x, y) < getTilePossi(min_coord.x, min_coord.y)) {
+          min_coord.x = x;
+          min_coord.y = y;
+        }
+      }
+    }
+    nextMoves.push({Action_type::UNCOVER, min_coord.x, min_coord.y});
+    setTileStatus(min_coord.x, min_coord.y, INQ);
+  }
+
   // ****************************************************************
   // Check what to return next
   // ****************************************************************
@@ -259,10 +303,15 @@ bool MyAI::checkIsPossible(Coordinate curr, const Coordinate original,
 
   vector<Coordinate> justChanged;
   if (isInSet(curr, visited)) {
+    // try {
     int effectiveNum =
         getTileValue(curr.x, curr.y) - countNearFlag(curr.x, curr.y);
     return effectiveNum == 0 ||
            countNearCovered(curr.x, curr.y) >= effectiveNum;
+    // } catch (std::exception &ex) {
+    //   cout << "STINKY HERE" << endl;
+    //   cout << ex.what() << endl;
+    // }
   } else {
     if (curr == original) {
       // set the covered tile to Flagged/Covered acoording to current truth
@@ -275,6 +324,7 @@ bool MyAI::checkIsPossible(Coordinate curr, const Coordinate original,
         justChanged.push_back(currtargettile);
         if (bitTable[i] == 1) {
           setTileStatus(currtargettile.x, currtargettile.y, FLAGGED);
+          addToTileCount(currtargettile.x, currtargettile.y);
         } else {
           setTileStatus(currtargettile.x, currtargettile.y, UNCOVERED);
         }
@@ -425,7 +475,7 @@ bool MyAI::easyRules(int x, int y) {
           // NOTE: This is just for visualization purposes for debugging.
           // It puts the Flag action into the action queue, so that when running
           // we can see what is flagged
-          if (global_debug) {
+          if (global_debug || true) {
             nextMoves.push({Action_type::FLAG, currX, currY});
           }
           ++discovered_bomb;
@@ -668,12 +718,22 @@ void MyAI::setTileValue(int x, int y, int newVal) {
   this->boardValues.at(y).at(x) = newVal;
 }
 
+double MyAI::calTilePossi(int x, int y) {
+  return getTilePossi(x, y) * 1.0 / getTileCount(x, y);
+}
+
 int MyAI::getTilePossi(int x, int y) { return this->possiTable.at(y).at(x); }
 
-void MyAI::setTilePossi(int x, int y, int newVal) {
-  if (getTilePossi(x, y) == 100) {
-    this->possiTable.at(y).at(x) = newVal;
+void MyAI::addToTilePossi(int x, int y) {
+  if (possiTable.at(y).at(x) == 100) {
+    this->possiTable.at(y).at(x) = 1;
   } else {
-    this->possiTable.at(y).at(x) += newVal;
+    this->possiTable.at(y).at(x) += 1;
   }
+}
+
+int MyAI::getTileCount(int x, int y) { return this->numCountTable.at(y).at(x); }
+
+void MyAI::addToTileCount(int x, int y) {
+  this->numCountTable.at(y).at(x) += 1;
 }

@@ -328,10 +328,10 @@ void World::printBoardInfo() {
 
   cout << "     ";
   for (int c = 0; c < colDimension; ++c)
-    cout << setw(8) << "-";
+    cout << setw(5) << "-";
   cout << endl << "     ";
   for (int c = 0; c < colDimension; ++c)
-    cout << setw(8) << c + 1;
+    cout << setw(5) << c + 1;
   cout << endl;
 }
 
@@ -350,7 +350,7 @@ void World::printTileInfo(int c, int r) {
   else
     tileString.append(".");
 
-  cout << setw(8) << tileString;
+  cout << setw(5) << tileString;
 }
 
 void World::printAgentInfo() {
