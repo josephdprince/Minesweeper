@@ -51,6 +51,7 @@ private:
   vector<vector<int>> numCountTable;
 
   int discovered_bomb;
+  int finishedTiles;
   bool global_debug = false;
 
 public:

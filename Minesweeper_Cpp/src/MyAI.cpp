@@ -30,12 +30,12 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
   this->rowDimension = _rowDimension;
   this->colDimension = _colDimension;
   this->totalMines = _totalMines;
-  this->agentX = _agentX;
-  this->agentY = _agentY;
+  this->agentX = _agentX; // starting X
+  this->agentY = _agentY; // starting Y
   this->discovered_bomb = 0;
+  this->finishedTiles = 1;
 
   // Populate both arrays with starting board information
-  // TODO: This is backwars from how world.cpp does it
   for (int i = 0; i < _rowDimension; ++i) {
     vector<TileStatus> initialStatus(_colDimension, COVERED);
     vector<int> initialValues(_colDimension, -1);
@@ -47,7 +47,7 @@ MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     boardValues.push_back(initialValues);
     numCountTable.push_back(initialCounts);
   }
-};
+}
 
 /*
   Function is called when world is looking for the next step
@@ -61,6 +61,10 @@ Agent::Action MyAI::getAction(int number) {
   int x = this->agentX;
   int y = this->agentY;
   updateVecs(number, x, y);
+  // If we identified all tiles then we can end game
+  if (rowDimension * colDimension == discovered_bomb + finishedTiles) {
+    return {LEAVE, -1, -1};
+  }
 
   // ****************************************************************
   // Select what to push into the next action queue based
@@ -235,6 +239,7 @@ Agent::Action MyAI::getAction(int number) {
           }
           Coordinate validTile = allCoveredTile[i];
           nextMoves.push({Action_type::FLAG, validTile.x, validTile.y});
+          ++discovered_bomb;
           setTileStatus(validTile.x, validTile.y, INQ);
         } else if (sumTable[i] == 0) {
           if (global_debug) {
@@ -262,36 +267,61 @@ Agent::Action MyAI::getAction(int number) {
         if (getTileStatus(x, y) != COVERED) {
           continue;
         }
-        if (min_coord.x == -1) {
+        if (min_coord.x == -1) { // initial run
           min_coord.x = x;
           min_coord.y = y;
         }
-        if (global_debug || true) {
+        if (global_debug) {
           cout << "Possible " << Coordinate({x, y}) << ": "
                << getTilePossi(x, y) << "/" << getTileCount(x, y) << " = "
-               << getTilePossi(x, y) << endl;
+               << calTilePossi(x, y) << endl;
         }
-        if (getTilePossi(x, y) < getTilePossi(min_coord.x, min_coord.y)) {
+        if (calTilePossi(x, y) < calTilePossi(min_coord.x, min_coord.y)) {
           min_coord.x = x;
           min_coord.y = y;
+        } else if (calTilePossi(x, y) == 1 &&
+                   calTilePossi(min_coord.x, min_coord.y) == 1) {
+          if (getTileCount(x, y) > getTileCount(min_coord.x, min_coord.y)) {
+            min_coord.x = x;
+            min_coord.y = y;
+          }
         }
       }
     }
-    nextMoves.push({Action_type::UNCOVER, min_coord.x, min_coord.y});
-    setTileStatus(min_coord.x, min_coord.y, INQ);
+    try {
+
+      cout << min_coord.x << " | " << min_coord.y << endl;
+      // rowDimension * colDimension == discovered_bomb + finishedTiles
+      cout << "rowDimension * colDimension =? discovered_bomb + finishedTiles"
+           << endl;
+      cout << (rowDimension * colDimension) << "=? "
+           << discovered_bomb + finishedTiles << endl;
+      nextMoves.push({Action_type::UNCOVER, min_coord.x, min_coord.y});
+      setTileStatus(min_coord.x, min_coord.y, INQ);
+    } catch (std::exception &ex) {
+      cout << "STINCKYA 8975353" << endl;
+      cout << ex.what() << endl;
+    }
   }
 
   // ****************************************************************
   // Check what to return next
   // ****************************************************************
+  // try {
   while (!nextMoves.empty()) {
     Agent::Action next = nextMoves.front();
     nextMoves.pop();
-
+    if (next.action == Action_type::UNCOVER) {
+      finishedTiles++;
+    }
     this->agentX = next.x;
     this->agentY = next.y;
     return next;
   }
+  // } catch (std::exception &ex) {
+  //   cout << "STINCKYA SDASDSADSADASDAS" << endl;
+  //   cout << ex.what() << endl;
+  // }
   // Exhausted all Action we leave
   return {LEAVE, -1, -1};
 }
@@ -322,9 +352,9 @@ bool MyAI::checkIsPossible(Coordinate curr, const Coordinate original,
         Coordinate currtargettile = allCoveredTile[i];
         changed.insert(currtargettile);
         justChanged.push_back(currtargettile);
+        addToTileCount(currtargettile.x, currtargettile.y);
         if (bitTable[i] == 1) {
           setTileStatus(currtargettile.x, currtargettile.y, FLAGGED);
-          addToTileCount(currtargettile.x, currtargettile.y);
         } else {
           setTileStatus(currtargettile.x, currtargettile.y, UNCOVERED);
         }
@@ -475,10 +505,10 @@ bool MyAI::easyRules(int x, int y) {
           // NOTE: This is just for visualization purposes for debugging.
           // It puts the Flag action into the action queue, so that when running
           // we can see what is flagged
+          ++discovered_bomb;
           if (global_debug || true) {
             nextMoves.push({Action_type::FLAG, currX, currY});
           }
-          ++discovered_bomb;
         }
       }
       // 3. Everything not flagged must be safe
@@ -719,6 +749,10 @@ void MyAI::setTileValue(int x, int y, int newVal) {
 }
 
 double MyAI::calTilePossi(int x, int y) {
+  // TODO: Fix this, tile count is incorrect
+  if (getTileCount(x, y) == 0) {
+    return 100.0;
+  }
   return getTilePossi(x, y) * 1.0 / getTileCount(x, y);
 }
 

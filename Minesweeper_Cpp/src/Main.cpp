@@ -219,6 +219,7 @@ int main(int argc, char *argv[]) {
       file.close();
     }
   } catch (const std::exception &e) {
+    cout << e.what() << endl;
     cout << "[ERROR] Failure to open file." << endl;
   }
   return 0;
