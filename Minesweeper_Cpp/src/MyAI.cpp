@@ -18,6 +18,7 @@
 // ======================================================================
 
 #include "MyAI.hpp"
+#include <utility>
 
 vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
                                 const vector<Coordinate> neighCoords);
@@ -128,9 +129,16 @@ Agent::Action MyAI::getAction(int number) {
       // cout << "tile value: " << getTileValue(currX, currY) << endl;
 
       // Get truth table size
+      if (coordsMain.size() == 0) {
+        continue;
+      }
       int ttSize = 1 << effectiveValMain;
 
       // cout << "\n\n\n\nTTSIZE: " << ttSize << "\n\n\n\n";
+
+      // A list of actions that we will consider after running below logic
+      vector<pair<Coordinate, Action_type>> considerList;
+      // vector<int> validRows;
 
       // Find each surrounding tile that is uncovered
       for (int i = -1; i <= 1; ++i) {
@@ -272,16 +280,30 @@ Agent::Action MyAI::getAction(int number) {
                         }
                       }
                       if (works) {
-                        setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
-                                      FLAGGED);
-                        nextMoves.push({Action_type::FLAG, coordsMain.at(l).x,
-                                        coordsMain.at(l).y});
+                        Coordinate pos;
+                        pos.x = coordsMain.at(l).x;
+                        pos.y = coordsMain.at(l).y;
+                        pair<Coordinate, Action_type> p =
+                            make_pair(pos, Action_type::FLAG);
+                        considerList.push_back(p);
+                        // setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+                        //               FLAGGED);
+                        // nextMoves.push({Action_type::FLAG,
+                        // coordsMain.at(l).x,
+                        //                 coordsMain.at(l).y});
                       }
                     } else {
-                      setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
-                                    INQ);
-                      nextMoves.push({Action_type::UNCOVER, coordsMain.at(l).x,
-                                      coordsMain.at(l).y});
+                      Coordinate pos;
+                      pos.x = coordsMain.at(l).x;
+                      pos.y = coordsMain.at(l).y;
+                      pair<Coordinate, Action_type> p =
+                          make_pair(pos, Action_type::UNCOVER);
+                      considerList.push_back(p);
+                      // setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+                      //               INQ);
+                      // nextMoves.push({Action_type::UNCOVER,
+                      // coordsMain.at(l).x,
+                      //                 coordsMain.at(l).y});
                     }
                     result >>= 1;
                   }
@@ -325,29 +347,87 @@ Agent::Action MyAI::getAction(int number) {
                           }
                         }
                         if (works) {
-                          setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                        FLAGGED);
-                          nextMoves.push({Action_type::FLAG, coordsMain.at(m).x,
-                                          coordsMain.at(m).y});
+                          Coordinate pos;
+                          pos.x = coordsMain.at(m).x;
+                          pos.y = coordsMain.at(m).y;
+                          pair<Coordinate, Action_type> p =
+                              make_pair(pos, Action_type::FLAG);
+                          considerList.push_back(p);
+                          // setTileStatus(coordsMain.at(m).x,
+                          // coordsMain.at(m).y,
+                          //               FLAGGED);
+                          // nextMoves.push({Action_type::FLAG,
+                          // coordsMain.at(m).x,
+                          //                 coordsMain.at(m).y});
                         }
                       } else {
-                        setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
-                                      INQ);
-                        nextMoves.push({Action_type::UNCOVER,
-                                        coordsMain.at(m).x,
-                                        coordsMain.at(m).y});
+                        Coordinate pos;
+                        pos.x = coordsMain.at(m).x;
+                        pos.y = coordsMain.at(m).y;
+                        pair<Coordinate, Action_type> p =
+                            make_pair(pos, Action_type::UNCOVER);
+                        considerList.push_back(p);
+                        // setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+                        //               INQ);
+                        // nextMoves.push({Action_type::UNCOVER,
+                        //                 coordsMain.at(m).x,
+                        //                 coordsMain.at(m).y});
                       }
                     }
                   }
                 }
               }
             } catch (const std::exception &exc) {
+              cout << "ERROR IN BLOCK 1" << endl;
               cout << exc.what() << endl;
             }
           }
         }
       }
       // cout << "Finished checking all of the neighbors" << endl;
+      // For each spot that we are considering, check if it works for all neighs
+      for (auto spot : considerList) {
+        // Make sure this is still covered
+        int thisX = spot.first.x;
+        int thisY = spot.first.y;
+        Action_type action = spot.second;
+        bool valid = true;
+
+        if (getTileStatus(thisX, thisY) == COVERED) {
+          for (int i = -1; i <= 1; ++i) {
+            for (int j = -1; j <= 1; ++j) {
+              int currX = thisX + i;
+              int currY = thisY + j;
+
+              if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+                continue;
+              }
+
+              if (getTileStatus(currX, currY) == UNCOVERED) {
+                int num = getTileValue(currX, currY);
+                int covered;
+                int flagged;
+                neighbors(currX, currY, covered, flagged);
+                if (action == Action_type::FLAG && !(num - flagged > 0)) {
+                  valid = false;
+                } else if (action == Action_type::UNCOVER &&
+                           !((covered - flagged) > (num - flagged))) {
+                  valid = false;
+                }
+              }
+            }
+          }
+        }
+        if (valid) {
+          if (action == Action_type::UNCOVER) {
+            setTileStatus(thisX, thisY, INQ);
+            nextMoves.push({Action_type::UNCOVER, thisX, thisY});
+          } else {
+            setTileStatus(thisX, thisY, FLAGGED);
+            nextMoves.push({Action_type::FLAG, thisX, thisY});
+          }
+        }
+      }
     }
   }
 
@@ -379,7 +459,8 @@ void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
         continue;
       }
       if (comeBackLaterSet.find({currX, currY}) != comeBackLaterSet.end()) {
-        // found a neighboring tile that is also in the come back later set
+        // found a neighboring tile that is also in the come back later
+        // set
         comeBackTails.push_back({currX, currY});
       } else if (getTileStatus(currX, currY) == COVERED) {
         //
@@ -406,8 +487,8 @@ void MyAI::checkComeBack() {
 }
 
 /*
-  Reveal the rest of the covered squares if flagged tiles = total # of bombs
-  (meaning we found all bombs)
+  Reveal the rest of the covered squares if flagged tiles = total # of
+  bombs (meaning we found all bombs)
 */
 void MyAI::revealAllSquares() {
   // Just for safety
@@ -672,3 +753,116 @@ vector<Coordinate> similarities(const vector<Coordinate> mainCoords,
   }
   return similarities;
 }
+
+// void intersection(vector<set<Coordinate, Action_type>> l) {
+//   vector<bool> matches(numCoveredMain, true);
+//   if (!validRows.empty()) {
+//     if (validRows.size() == 1) {
+//       int result = validRows.at(0);
+//       for (int l = 0; l < numCoveredMain - numFlagsMain; ++l) {
+//         if (result & 1) {
+//           // Verify that we can actually put a flag here
+//           bool works = true;
+//           for (int a = -1; a <= 1; ++a) {
+//             for (int b = -1; b <= 1; ++b) {
+//               int currXval = coordsMain.at(l).x + a;
+//               int currYval = coordsMain.at(l).y + b;
+
+//               if ((a == 0 && b == 0) || !inBounds(currXval, currYval)) {
+//                 continue;
+//               }
+//               int cov;
+//               int flag;
+//               neighbors(currXval, currYval, cov, flag);
+//               if (flag + 1 > getTileValue(currXval, currYval)) {
+//                 works = false;
+//                 break;
+//               }
+//             }
+//           }
+//           if (works) {
+//             considerList.push_back(make_pair(
+//                 {coordsMain.at(l).x, coordsMain.at(l).y},
+//                 Action_type::FLAG));
+//             // setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+//             //               FLAGGED);
+//             // nextMoves.push({Action_type::FLAG,
+//             // coordsMain.at(l).x,
+//             //                 coordsMain.at(l).y});
+//           }
+//         } else {
+//           considerList.push_back(make_pair(
+//               {coordsMain.at(l).x, coordsMain.at(l).y},
+//               Action_type::UNCOVER));
+//           // setTileStatus(coordsMain.at(l).x, coordsMain.at(l).y,
+//           //               INQ);
+//           // nextMoves.push({Action_type::UNCOVER,
+//           // coordsMain.at(l).x,
+//           //                 coordsMain.at(l).y});
+//         }
+//         result >>= 1;
+//       }
+//     } else {
+//       int prev = validRows.at(0);
+//       int curr;
+
+//       for (int k = 1; k < validRows.size(); ++k) {
+//         curr = validRows.at(k);
+//         int result = !(curr ^ prev);
+//         for (int l = 0; l < numCoveredMain - numFlagsMain; ++l) {
+//           if (!(result & 1)) {
+//             matches.at(l) = false;
+//           }
+//           result >>= 1;
+//         }
+//         prev = curr;
+//       }
+
+//       for (int m = 0; m < matches.size(); ++m) {
+//         if (matches.at(m) == true) {
+//           if ((validRows.at(0) >> m) & 1) {
+//             // Verify that we can actually put a flag here
+//             bool works = true;
+//             for (int a = -1; a <= 1; ++a) {
+//               for (int b = -1; b <= 1; ++b) {
+//                 int currXval = coordsMain.at(m).x + a;
+//                 int currYval = coordsMain.at(m).y + b;
+
+//                 if ((a == 0 && b == 0) || !inBounds(currXval, currYval)) {
+//                   continue;
+//                 }
+//                 int cov;
+//                 int flag;
+//                 neighbors(currXval, currYval, cov, flag);
+//                 if (flag + 1 > getTileValue(currXval, currYval)) {
+//                   works = false;
+//                   break;
+//                 }
+//               }
+//             }
+//             if (works) {
+//               considerList.push_back(make_pair(
+//                   {coordsMain.at(l).x, coordsMain.at(l).y},
+//                   Action_type::FLAG));
+//               // setTileStatus(coordsMain.at(m).x,
+//               // coordsMain.at(m).y,
+//               //               FLAGGED);
+//               // nextMoves.push({Action_type::FLAG,
+//               // coordsMain.at(m).x,
+//               //                 coordsMain.at(m).y});
+//             }
+//           } else {
+//             considerList.push_back(
+//                 make_pair({coordsMain.at(l).x, coordsMain.at(l).y},
+//                           Action_type::UNCOVER));
+//             // setTileStatus(coordsMain.at(m).x, coordsMain.at(m).y,
+//             //               INQ);
+//             // nextMoves.push({Action_type::UNCOVER,
+//             //                 coordsMain.at(m).x,
+//             //                 coordsMain.at(m).y});
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
