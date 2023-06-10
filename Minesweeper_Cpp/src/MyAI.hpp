@@ -38,10 +38,6 @@ struct Coordinate {
   bool operator==(const Coordinate &rhs) const {
     return this->x == rhs.x && this->y == rhs.y;
   }
-  ostream &operator<<(ostream &ost) {
-    ost << "(" << x + 1 << ", " << y + 1 << ")";
-    return ost;
-  }
 };
 
 class MyAI : public Agent {
@@ -63,24 +59,30 @@ public:
 
 private:
   void updateVecs(int number, int x, int y);
-  bool inBounds(int x, int y);
-  void neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags);
-  int countNearCovered(int x, int y);
-  int countNearFlag(int x, int y);
   bool easyRules(int x, int y);
   void revealAllSquares();
   void checkComeBack();
+  bool checkIsPossible(Coordinate curr, const Coordinate original,
+                       const vector<int> &bitTable, set<Coordinate> &visited,
+                       set<Coordinate> &changed);
+
+  // Helper
+  bool inBounds(int x, int y);
+  int countNearCovered(int x, int y);
+  int countNearFlag(int x, int y);
   void grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
                      vector<Coordinate> &comeBackTails,
                      vector<Coordinate> &otherTiles);
+  void grabSurrCovered(int x, int y, vector<Coordinate> &storage);
+  void grabSurrComeBack(int x, int y, vector<Coordinate> &storage);
+  void grabSurrFlagged(int x, int y, vector<Coordinate> &storage);
+  void grabSurrUncoverd(int x, int y, vector<Coordinate> &storage);
 
-  bool checkIsPossible(int x, int y, const Coordinate original,
-                       set<Coordinate> &visited);
-  bool isInSet(Coordinate target, set<Coordinate> &targetSet);
-  bool isInVec(Coordinate target, vector<Coordinate> &targetVec);
+  template <class T> bool isInSet(T target, set<T> &targetSet);
+  template <class T> bool isInVec(T target, vector<T> &targetVec);
   void printSet(set<Coordinate> &target);
   void printVec(vector<Coordinate> &target);
-  void printCurrMaps();
+  void printCurrMaps(string prefix);
   // Getters and Setters
   TileStatus getTileStatus(int x, int y);
   int getTileValue(int x, int y);

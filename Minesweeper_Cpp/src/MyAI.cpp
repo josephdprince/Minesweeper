@@ -19,6 +19,10 @@
 
 #include "MyAI.hpp"
 
+ostream &operator<<(ostream &ost, const Coordinate target) {
+  return ost << "(" << target.x + 1 << ", " << target.y + 1 << ")";
+}
+
 MyAI::MyAI(int _rowDimension, int _colDimension, int _totalMines, int _agentX,
            int _agentY)
     : Agent() {
@@ -107,6 +111,7 @@ Agent::Action MyAI::getAction(int number) {
     for (auto comeBackTile : this->comeBackLaterSet) {
       int currX = comeBackTile.x;
       int currY = comeBackTile.y;
+      int currVal = getTileValue(currX, currY);
       if (global_debug) {
         cout << "\tChekcing comback (" << currX + 1 << ", " << currY + 1 << ")"
              << endl;
@@ -119,17 +124,17 @@ Agent::Action MyAI::getAction(int number) {
                     allOtherTile);
 
       // #TODO: check possible bomb possition and see valid or not
+      /*
+        go through all the come back later tiles then check if the tile is
+        valid. Remove any that is not valid. Find th common spot that can be a
+        zero
+      */
       int ttableSize = 1 << allCoveredTile.size();
       int count = 0;
       if (global_debug) {
         cout << "\t\tTruth Table size = 2^" << allCoveredTile.size() << " = "
              << ttableSize << endl;
       }
-      /*
-        go through all the come back later tiles then check if the tile is
-        valid. Remove any that is not valid. Find th common spot that can be a
-        zero
-      */
       vector<int> validCombination;
       while (count < ttableSize) {
         if (global_debug) {
@@ -139,9 +144,12 @@ Agent::Action MyAI::getAction(int number) {
         // going through each entry in truth table look for valid values
         vector<int> bitTable(allCoveredTile.size());
         int copy = count;
-
+        int bombcount = countNearFlag(currX, currY);
         // grab the bit representation of the current truth table row
         for (int i = 0; i < bitTable.size(); i++) {
+          if (copy & 1) {
+            ++bombcount;
+          }
           bitTable[i] = copy & 1;
           copy >>= 1;
         }
@@ -156,20 +164,16 @@ Agent::Action MyAI::getAction(int number) {
           cout << endl;
           cout << "\t\t**************" << endl;
         }
-        // set the covered tile to Flagged/Covered acoording to current truth
-        // table row
-        for (int i = 0; i < bitTable.size(); i++) {
-          Coordinate currtargettile = allCoveredTile[i];
-          if (bitTable[i] == 1) {
-            setTileStatus(currtargettile.x, currtargettile.y, FLAGGED);
-          } else {
-            setTileStatus(currtargettile.x, currtargettile.y, UNCOVERED);
-          }
+        // too many or too little bombs for this combination
+        if (bombcount != currVal) {
+          continue;
         }
 
         // check validity of the current truth table row
+        set<Coordinate> changedTiles;
         set<Coordinate> visited;
-        if (checkIsPossible(currX, currY, {currX, currY}, visited)) {
+        if (checkIsPossible(currX, currY, comeBackTile, bitTable, visited,
+                            changedTiles)) {
           validCombination.push_back(count);
           if (global_debug) {
             cout << "\t\t\tPossible combination" << endl;
@@ -204,7 +208,18 @@ Agent::Action MyAI::getAction(int number) {
 
         if (sumTable[i] == validCombination.size()) {
           if (global_debug) {
-            cout << "\t\t  INTERMEDIATE LOGIC ADDED TILE: "
+            cout << "\t\t  INTERMEDIATE LOGIC Flag TILE: "
+                    "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+                 << endl;
+            cout << "\t\t  (" << allCoveredTile[i].x + 1 << ", "
+                 << allCoveredTile[i].y + 1 << ")" << endl;
+          }
+          Coordinate validTile = allCoveredTile[i];
+          nextMoves.push({Action_type::FLAG, validTile.x, validTile.y});
+          setTileStatus(validTile.x, validTile.y, INQ);
+        } else if (sumTable[i] == 0) {
+          if (global_debug) {
+            cout << "\t\t  INTERMEDIATE LOGIC Uncover TILE: "
                     "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
                  << endl;
             cout << "\t\t  (" << allCoveredTile[i].x + 1 << ", "
@@ -232,146 +247,47 @@ Agent::Action MyAI::getAction(int number) {
   return {LEAVE, -1, -1};
 }
 
-bool MyAI::checkIsPossible(int x, int y, const Coordinate original,
-                           set<Coordinate> &visited) {
+// TODO: git gud and implement this
+bool MyAI::checkIsPossible(Coordinate curr, const Coordinate original,
+                           const vector<int> &bitTable,
+                           set<Coordinate> &visited, set<Coordinate> &changed) {
 
-  bool debug = true;
-  // bool debug = false;
-  // TODO: git gud and implement this
-  if (global_debug && debug) {
-    cout << "\t\t\tChekcing possible for (" << x + 1 << ", " << y + 1 << ")"
-         << endl;
-  }
-
-  int effectiveNum = getTileValue(x, y) - countNearFlag(x, y);
-
-  if (effectiveNum < 0) {
-    return false;
-  }
-
-  // current checking tile alread in the visited set
-  if (isInSet({x, y}, visited)) {
-    if (global_debug && debug) {
-      cout << "\t\t\t ALREADY SEEN (" << x + 1 << ", " << y + 1 << ") = "
-           << (effectiveNum == 0 || (countNearCovered(x, y) >= effectiveNum))
-           << " Effective = " << effectiveNum
-           << ", #covered = " << countNearCovered(x, y) << endl;
-    }
-
-    if (original.x == x && original.y == y) {
-      return countNearFlag(x, y) == getTileValue(x, y);
-    } else {
-      // TODO: return if found all bomb or empty space is enough for remaining
-      // unknow bombs
-      return effectiveNum == 0 || (countNearCovered(x, y) >= effectiveNum);
-    }
+  vector<Coordinate> justChanged;
+  if (isInSet(curr, visited)) {
+    
   } else {
-    visited.insert({x, y});
-  }
-
-  // Grab surrounding tiles
-  vector<Coordinate> allCoveredTile;
-  vector<Coordinate> allComeBackTile;
-  vector<Coordinate> allOtherTile;
-  grabSurrTiles(x, y, allCoveredTile, allComeBackTile, allOtherTile);
-
-  bool goodForOther = true;
-  // recursively check if the current setup good for other tiles
-  for (int i = 0; i < allComeBackTile.size() && goodForOther; i++) {
-    // comeBackLaterSet.erase(allComeBackTile[i]);
-    goodForOther = checkIsPossible(allComeBackTile[i].x, allComeBackTile[i].y,
-                                   original, visited);
-    visited.insert(allComeBackTile[i]);
-    // comeBackLaterSet.insert(allComeBackTile[i]);
-  }
-
-  if (global_debug && debug) {
-    cout << "\t\t\t(" << x + 1 << ", " << y + 1 << ") = "
-         << (getTileValue(x, y) == countNearFlag(x, y) && goodForOther) << endl;
-  }
-
-  if (original.x == x && original.y == y) {
-    return countNearFlag(x, y) == getTileValue(x, y) && goodForOther;
-  } else {
-    return effectiveNum == 0 ||
-           (countNearCovered(x, y) >= effectiveNum && effectiveNum > 0) &&
-               goodForOther;
-  }
-}
-
-/*
-
-*/
-void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
-                         vector<Coordinate> &comeBackTails,
-                         vector<Coordinate> &otherTiles) {
-  // bool debug = true;
-  bool debug = false;
-  if (global_debug && debug) {
-    if (x + 1 == 7 && y + 1 == 4) {
-      cout << "\nComeback later set contains: ";
-      for (Coordinate i : comeBackLaterSet) {
-        cout << "(" << i.x + 1 << ", " << i.y + 1 << ") ";
-      }
-      cout << endl;
-    }
-
-    cout << "\t\tGrabbing tiles around(" << x + 1 << ", " << y + 1 << "): ";
-  }
-
-  for (int i = -1; i <= 1; ++i) {
-    for (int j = -1; j <= 1; ++j) {
-      int currX = x + i;
-      int currY = y + j;
-
-      // bounds check
-      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
-        continue;
+    if (curr == original) {
+      // set the covered tile to Flagged/Covered acoording to current truth
+      // table row
+      vector<Coordinate> allCoveredTile;
+      grabSurrCovered(curr.x, curr.y, allCoveredTile);
+      for (int i = 0; i < bitTable.size(); i++) {
+        Coordinate currtargettile = allCoveredTile[i];
+        changed.insert(currtargettile);
+        justChanged.push_back(currtargettile);
+        if (bitTable[i] == 1) {
+          setTileStatus(currtargettile.x, currtargettile.y, FLAGGED);
+        } else {
+          setTileStatus(currtargettile.x, currtargettile.y, UNCOVERED);
+        }
       }
 
-      if (getTileStatus(currX, currY) == COVERED) {
-        coverTiles.push_back({currX, currY});
-        if (global_debug && debug) {
-          cout << "(" << currX + 1 << ", " << currY + 1 << ") C, ";
-        }
-      } else if (isInSet({currX, currY}, comeBackLaterSet)) {
-        // found a neighboring tile that is also in the come back later set
-        comeBackTails.push_back({currX, currY});
-        if (global_debug && debug) {
-          cout << "(" << currX + 1 << ", " << currY + 1 << ") CB, ";
-        }
-      } else {
-        if (global_debug && debug) {
-          cout << "(" << currX + 1 << ", " << currY + 1 << ") O, ";
-        }
-        otherTiles.push_back({currX, currY});
+      int effectiveNum =
+          getTileValue(curr.x, curr.y) - countNearFlag(curr.x, curr.y);
+      visited.insert(curr);
+      vector<Coordinate> needToCheck;
+      bool stillPossible = true;
+      for (Coordinate i : justChanged) {
+        grabSurrComeBack(i.x, i.y, needToCheck);
       }
+      for (Coordinate i : needToCheck) {
+        if (stillPossible == false) {
+          break;
+        }
+      }
+      return stillPossible && effectiveNum == 0;
     }
   }
-  if (global_debug && debug) {
-    cout << endl;
-  }
-}
-
-bool MyAI::isInSet(Coordinate target, set<Coordinate> &targetSet) {
-  bool ans = false;
-  for (Coordinate i : targetSet) {
-    if (i == target) {
-      ans = true;
-      break;
-    }
-  }
-  return ans;
-}
-bool MyAI::isInVec(Coordinate target, vector<Coordinate> &targetVec) {
-  bool ans = false;
-  for (Coordinate i : targetVec) {
-    if (i == target) {
-      ans = true;
-      break;
-    }
-  }
-  return ans;
 }
 
 void MyAI::checkComeBack() {
@@ -385,9 +301,9 @@ void MyAI::checkComeBack() {
   }
   if (global_debug) {
     for (Coordinate i : toBeRemoveTiles) {
-      cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXremoving from comeback set from "
-              "checkComeBack"
-           << endl;
+      cout
+          << "XXXXXXXXXXXXXXXXXXXXremoving from comeback set from checkComeBack"
+          << endl;
       comeBackLaterSet.erase(i);
     }
   }
@@ -395,11 +311,10 @@ void MyAI::checkComeBack() {
 
 /*
   Reveal the rest of the covered squares if flagged tiles = total # of bombs
-  (meaning we found all bombs). It is the end of the game if we reveal all the
-  covered square
+  (meaning we found all bombs).
 */
 void MyAI::revealAllSquares() {
-  // Just for safety
+  // Just for safety check
   if (this->totalMines != this->discovered_bomb) {
     return;
   }
@@ -426,14 +341,13 @@ void MyAI::revealAllSquares() {
 bool MyAI::easyRules(int x, int y) {
   bool allClear = false;
   int centerVal = getTileValue(x, y);
-  int numCoveredNeighbor = -1;
-  int numFlaggedNeighbor = -1;
-  neighbors(x, y, numCoveredNeighbor, numFlaggedNeighbor);
+  int numCoveredNeighbor = countNearCovered(x, y);
+  int numFlaggedNeighbor = countNearFlag(x, y);
 
   // We can't figure anything out
   // centerVal ==0 || numCoveredNeighbor == centerVal || numFlaggedNeighbor ==
   // centerVal
-  if (centerVal != 0 && numCoveredNeighbor != centerVal &&
+  if (centerVal != 0 && numCoveredNeighbor + numFlaggedNeighbor != centerVal &&
       numFlaggedNeighbor != centerVal) {
     return allClear;
   }
@@ -492,20 +406,104 @@ void MyAI::updateVecs(int number, int x, int y) {
     return;
   setTileStatus(x, y, UNCOVERED);
   setTileValue(x, y, number);
+}
 
-  // This is an attempt to tile up the possible bomb position and guess
+/*
+==================================================
+Helper Fucntions
+==================================================
+*/
+
+void MyAI::grabSurrTiles(int x, int y, vector<Coordinate> &coverTiles,
+                         vector<Coordinate> &comeBackTails,
+                         vector<Coordinate> &otherTiles) {
+
+  grabSurrCovered(x, y, coverTiles);
+  grabSurrComeBack(x, y, comeBackTails);
+  grabSurrFlagged(x, y, otherTiles);
+  grabSurrUncoverd(x, y, otherTiles);
+}
+
+void MyAI::grabSurrCovered(int x, int y, vector<Coordinate> &storage) {
   for (int i = -1; i <= 1; ++i) {
     for (int j = -1; j <= 1; ++j) {
       int currX = x + i;
       int currY = y + j;
-
-      // bound check
       if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
         continue;
       }
-      setTilePossi(currX, currY, number);
+
+      if (getTileStatus(currX, currY) == COVERED) {
+        storage.push_back({currX, currY});
+      }
     }
   }
+}
+void MyAI::grabSurrComeBack(int x, int y, vector<Coordinate> &storage) {
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      int currX = x + i;
+      int currY = y + j;
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+        continue;
+      }
+
+      if (isInSet({currX, currY}, comeBackLaterSet)) {
+        storage.push_back({currX, currY});
+      }
+    }
+  }
+}
+void MyAI::grabSurrFlagged(int x, int y, vector<Coordinate> &storage) {
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      int currX = x + i;
+      int currY = y + j;
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+        continue;
+      }
+
+      if (getTileStatus(currX, currY) == FLAGGED) {
+        storage.push_back({currX, currY});
+      }
+    }
+  }
+}
+void MyAI::grabSurrUncoverd(int x, int y, vector<Coordinate> &storage) {
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      int currX = x + i;
+      int currY = y + j;
+      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
+        continue;
+      }
+      if (getTileStatus(currX, currY) == UNCOVERED) {
+        storage.push_back({currX, currY});
+      }
+    }
+  }
+}
+
+template <class T> bool isInSet(T target, set<T> &targetSet) {
+  bool ans = false;
+  for (T i : targetSet) {
+    if (i == target) {
+      ans = true;
+      break;
+    }
+  }
+  return ans;
+}
+
+template <class T> bool isInVec(T target, vector<T> &targetVec) {
+  bool ans = false;
+  for (T i : targetVec) {
+    if (i == target) {
+      ans = true;
+      break;
+    }
+  }
+  return ans;
 }
 
 /*
@@ -513,32 +511,6 @@ void MyAI::updateVecs(int number, int x, int y) {
 */
 bool MyAI::inBounds(int x, int y) {
   return x >= 0 && x < this->colDimension && y >= 0 && y < this->rowDimension;
-}
-
-/*
-  Count the number of covered neighbors around a given coordinate (x, y)
-*/
-void MyAI::neighbors(int x, int y, int &numCoveredNeighbors, int &numFlags) {
-  numCoveredNeighbors = 0;
-  numFlags = 0;
-
-  for (int i = -1; i <= 1; ++i) {
-    for (int j = -1; j <= 1; ++j) {
-      int currX = x + i;
-      int currY = y + j;
-
-      if ((i == 0 && j == 0) || !inBounds(currX, currY)) {
-        continue;
-      }
-      if (getTileStatus(currX, currY) == COVERED) {
-        numCoveredNeighbors++;
-      }
-      if (getTileStatus(currX, currY) == FLAGGED) {
-        numCoveredNeighbors++;
-        numFlags++;
-      }
-    }
-  }
 }
 
 /*
@@ -577,27 +549,35 @@ int MyAI::countNearFlag(int x, int y) {
   return count;
 }
 
-/*
-  Print out the current boardStatus map to cout
-*/
-void MyAI::printCurrMaps() {
+void MyAI::printCurrMaps(string prefix = "") {
   int numRows = this->rowDimension;
   int numCols = this->colDimension;
-  cout << "SIZE: " << numRows << "X" << numCols << endl;
-  for (int row = numRows - 1; row >= 0; --row) {
-    for (int col = 0; col < numCols; ++col) {
-      cout << boardStatus.at(row).at(col) << ",";
+  cout << prefix << "SIZE: " << numRows << "X" << numCols << endl;
+  for (int col = numCols - 1; col >= 0; --col) {
+    cout << prefix;
+    printf("%-4d%c", col + 1, '|');
+    for (int row = 0; row < numRows; ++row) {
+      if (getTileStatus(row, col) == COVERED) {
+        cout << ". ";
+      } else if (getTileStatus(row, col) == FLAGGED) {
+        cout << "# ";
+      } else if (getTileStatus(row, col) == INQ) {
+        cout << "Q ";
+      } else {
+        cout << getTileValue(row, col) << " ";
+      }
     }
     cout << endl;
   }
+  cout << prefix << "     ";
+  for (int c = 0; c < numRows; ++c)
+    cout << "- ";
   cout << endl;
 
-  for (int row = numRows - 1; row >= 0; --row) {
-    for (int col = 0; col < numCols; ++col) {
-      cout << boardValues.at(row).at(col) << ",";
-    }
-    cout << endl;
-  }
+  cout << prefix << "     ";
+  for (int c = 0; c < numRows; ++c)
+    cout << c + 1 << " ";
+  cout << endl;
 }
 
 /*
