@@ -491,18 +491,15 @@ void MyAI::checkComeBack() {
   bombs (meaning we found all bombs)
 */
 void MyAI::revealAllSquares() {
-  // Just for safety
-  if (this->totalMines != this->discovered_bomb) {
+  // Just for safety check
+  if (totalMines != discovered_bomb) {
     return;
   }
-
-  int numCol = this->colDimension;
-  int numRow = this->rowDimension;
-  for (int i = 0; i < numRow; ++i) {
-    for (int j = 0; j < numCol; ++j) {
-      if (getTileStatus(i, j) == COVERED) {
-        nextMoves.push({Action_type::UNCOVER, i, j});
-        setTileStatus(i, j, INQ);
+  for (int y = 0; y < rowDimension; ++y) {
+    for (int x = 0; x < colDimension; ++x) {
+      if (getTileStatus(x, y) == COVERED) {
+        nextMoves.push({Action_type::UNCOVER, x, y});
+        setTileStatus(x, y, INQ);
       }
     }
   }
