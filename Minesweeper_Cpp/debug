@@ -1,2 +1,2 @@
 make
-./bin/Minesweeper -vdf ../WorldGenerator/Problems/Beginner_world_1.txt
+./bin/Minesweeper -vdf ../WorldGenerator/Problems/Beginner_world_9.txt
